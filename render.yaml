@@ -1,0 +1,44 @@
+# Render Blueprint: bitta repodan ikkita xizmat (API va sayt) yaratadi.
+services:
+  - type: web
+    name: oila-reestri-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DATABASE_URL        # Neon'dan olingan ulanish satri
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS        # saytning manzili, masalan https://oila-reestri.onrender.com
+        sync: false
+
+  - type: web
+    name: oila-reestri
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL        # API manzili, masalan https://oila-reestri-api.onrender.com
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
