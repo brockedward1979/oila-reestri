@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { STAT_BY_KEY } from '../lib/helpers.js';
 import { fieldCatalog, runCustomExport } from '../lib/exporters.js';
-import { Field, FormError, Icon, Modal } from './ui.jsx';
+import { Confirm, Field, FormError, Icon, Modal, Prompt } from './ui.jsx';
+import { fmt } from '../lib/helpers.js';
 
 const FALLBACK = { id: null, name: 'Yangi jadval', mode: 'oila', titleCase: true, cols: ['no', 'boshliq'] };
 
-export default function ExportBuilder({ data, setData, visible, statKey, onClose, toast }) {
+export default function ExportBuilder({ data, setData, visible, statKey, selection, onClose, toast }) {
   const catalog = useMemo(() => fieldCatalog(data.customFields), [data.customFields]);
   const byId = Object.fromEntries(catalog.map((c) => [c.id, c]));
   const [presetId, setPresetId] = useState(data.presets[0]?.id ?? null);
@@ -16,6 +17,7 @@ export default function ExportBuilder({ data, setData, visible, statKey, onClose
   const [drag, setDrag] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [dialog, setDialog] = useState(null);
   const cols = cfg.cols.filter((c) => byId[c] && !(cfg.mode === 'oila' && byId[c].scope === 'azo'));
   const avail = catalog.filter((c) => !cols.includes(c.id) && !(cfg.mode === 'oila' && c.scope === 'azo'));
   const setCols = (a) => setCfg({ ...cfg, cols: a });
@@ -23,33 +25,38 @@ export default function ExportBuilder({ data, setData, visible, statKey, onClose
   const dropAt = (i) => { if (drag == null || drag === i) return; const a = [...cols]; const [x] = a.splice(drag, 1); a.splice(i, 0, x); setCols(a); setDrag(null); };
   const loadPreset = (id) => { const p = data.presets.find((x) => String(x.id) === id); if (p) { setPresetId(p.id); setCfg({ ...p }); } };
 
+  const persist = async (name, asNew) => {
+    const body = { name: name.trim(), mode: cfg.mode, titleCase: !!cfg.titleCase, cols };
+    const p = asNew || !cfg.id ? await api.createPreset(body) : await api.updatePreset(cfg.id, body);
+    setData((d) => ({ ...d, presets: d.presets.some((x) => x.id === p.id) ? d.presets.map((x) => (x.id === p.id ? p : x)) : [...d.presets, p] }));
+    setCfg(p); setPresetId(p.id); toast('Shablon saqlandi');
+  };
   const savePreset = async (asNew) => {
-    const name = asNew ? window.prompt('Yangi shablon nomi:', cfg.name + ' (nusxa)') : cfg.name;
-    if (!name?.trim()) return;
+    if (asNew || !cfg.id) { setDialog({ t: 'prompt', initial: cfg.id ? cfg.name + ' (nusxa)' : cfg.name }); return; }
     setBusy(true); setErr('');
-    try {
-      const body = { name: name.trim(), mode: cfg.mode, titleCase: !!cfg.titleCase, cols };
-      const p = asNew || !cfg.id ? await api.createPreset(body) : await api.updatePreset(cfg.id, body);
-      setData((d) => ({ ...d, presets: d.presets.some((x) => x.id === p.id) ? d.presets.map((x) => (x.id === p.id ? p : x)) : [...d.presets, p] }));
-      setCfg(p); setPresetId(p.id); toast('Shablon saqlandi');
-    } catch (e) { setErr(e.message); }
+    try { await persist(cfg.name, false); } catch (e) { setErr(e.message); }
     setBusy(false);
   };
-  const removePreset = async () => {
-    if (!cfg.id || !window.confirm(`“${cfg.name}” shablonini o‘chirasizmi?`)) return;
-    try {
+  const removePreset = () => setDialog({
+    t: 'confirm',
+    yes: async () => {
       await api.deletePreset(cfg.id);
       const rest = data.presets.filter((x) => x.id !== cfg.id);
       setData((d) => ({ ...d, presets: rest }));
       setCfg({ ...(rest[0] || FALLBACK) }); setPresetId(rest[0]?.id ?? null); toast('Shablon o‘chirildi');
-    } catch (e) { setErr(e.message); }
-  };
-  const run = () => {
-    const n = runCustomExport({
-      families: scope === 'visible' ? visible : data.families, cfg, cols,
-      customFields: data.customFields, onlyStat: onlyHits ? STAT_BY_KEY[statKey] : null,
-    });
-    toast(`${n} qatorli jadval yuklab olindi`);
+    },
+  });
+  const run = async () => {
+    setBusy(true); setErr('');
+    try {
+      const fams = scope === 'visible' ? visible : data.families;
+      const n = await runCustomExport({
+        families: fams, cfg, cols, customFields: data.customFields, onlyStat: onlyHits ? STAT_BY_KEY[statKey] : null,
+        subtitle: `${scope === 'visible' ? selection : 'Barcha oilalar'}. ${fams.length} oila. Tayyorlangan sana: ${fmt(new Date())}`,
+      });
+      toast(`${n} qatorli jadval yuklab olindi`);
+    } catch (e) { setErr('Excel faylni tayyorlab bo‘lmadi: ' + e.message); }
+    setBusy(false);
   };
 
   return (
@@ -57,7 +64,7 @@ export default function ExportBuilder({ data, setData, visible, statKey, onClose
       footer={<>
         <button className="btn ghost" disabled={busy} onClick={() => savePreset(true)}>Yangi shablon</button>
         <button className="btn ghost" disabled={busy} onClick={() => savePreset(false)}>Shablonni saqlash</button>
-        <button className="btn" disabled={!cols.length} onClick={run}><Icon n="down" s={16} /> Excel yuklab olish</button>
+        <button className="btn" disabled={!cols.length || busy} onClick={run}><Icon n="down" s={16} /> {busy ? 'Tayyorlanmoqda…' : 'Excel yuklab olish'}</button>
       </>}>
       <div className="grid">
         <Field label="Shablon">
@@ -119,6 +126,8 @@ export default function ExportBuilder({ data, setData, visible, statKey, onClose
           })}
         </section>
       </div>
+      {dialog?.t === 'prompt' && <Prompt title="Shablonni saqlash" label="Shablon nomi" initial={dialog.initial} onSubmit={(name) => persist(name, true)} onClose={() => setDialog(null)} />}
+      {dialog?.t === 'confirm' && <Confirm text={`“${cfg.name}” shabloni o‘chiriladi. Shu shablon bilan yuklab olingan fayllar o‘chmaydi.`} action="Shablonni o‘chirish" onYes={dialog.yes} onClose={() => setDialog(null)} />}
     </Modal>
   );
 }

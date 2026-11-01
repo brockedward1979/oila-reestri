@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { TAGS, TOIFA, initials, toISO, fromISO } from '../lib/helpers.js';
+import { TAGS, TOIFA, fmt, initials, parseDMY } from '../lib/helpers.js';
 
 const P = {
   chev: 'M6 9l6 6 6-6', plus: 'M12 5v14M5 12h14', edit: 'M4 20h4L19 9l-4-4L4 16v4z', trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
@@ -8,24 +8,37 @@ const P = {
   cols: 'M4 5h16M4 12h16M4 19h16M9 3v4M15 10v4M7 17v4', up: 'M6 15l6-6 6 6', x: 'M6 6l12 12M18 6L6 18',
   crown: 'M4 18h16L18 8l-4 4-2-6-2 6-4-4z', camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   out: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10', refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
+  cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', filter: 'M4 5h16l-6 7v6l-4 2v-8z', chart: 'M5 20V10M12 20V4M19 20v-7',
+  left: 'M15 6l-6 6 6 6', right: 'M9 6l6 6-6 6', doc: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',
 };
 export const Icon = ({ n, s = 18 }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={P[n]} /></svg>
 );
 
-export function Modal({ title, onClose, children, footer, wide }) {
+/* Ochiq modallar to'plami: Escape faqat eng ustidagisini yopadi. */
+const modalStack = [];
+
+export function Modal({ title, onClose, children, footer, wide, className = '' }) {
   const box = useRef();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    const k = (e) => e.key === 'Escape' && onClose();
+    const id = {};
+    modalStack.push(id);
+    const k = (e) => { if (e.key === 'Escape' && modalStack[modalStack.length - 1] === id) { e.stopPropagation(); closeRef.current(); } };
     document.addEventListener('keydown', k);
     document.body.classList.add('lock');
-    // Birinchi maydonga fokus (telefonda klaviatura o'zi ochilmasligi uchun faqat katta ekranda)
-    if (window.matchMedia('(min-width: 720px)').matches) box.current?.querySelector('input:not([type=file]),select,textarea')?.focus();
-    return () => { document.removeEventListener('keydown', k); document.body.classList.remove('lock'); };
-  }, [onClose]);
+    // Telefonda klaviatura o'zi ochilib ketmasligi uchun fokus faqat katta ekranda
+    if (window.matchMedia('(min-width: 720px)').matches) box.current?.querySelector('input:not([type=file]):not([type=checkbox]):not([type=radio]),select,textarea')?.focus();
+    return () => {
+      document.removeEventListener('keydown', k);
+      modalStack.splice(modalStack.indexOf(id), 1);
+      if (!modalStack.length) document.body.classList.remove('lock');
+    };
+  }, []);
   return (
     <div className="ov" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={'sheet' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-label={title} ref={box}>
+      <div className={'sheet' + (wide ? ' wide' : '') + (className ? ' ' + className : '')} role="dialog" aria-modal="true" aria-label={title} ref={box}>
         <header className="sheet-h"><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label="Yopish"><Icon n="x" /></button></header>
         <div className="sheet-b">{children}</div>
         {footer && <footer className="sheet-f">{footer}</footer>}
@@ -75,7 +88,7 @@ export function CustomInputs({ fields, scope, value, onChange }) {
         {cf.type === 'select' ? (
           <select value={v} onChange={(e) => set(e.target.value)}><option value="">—</option>{cf.options.map((o) => <option key={o}>{o}</option>)}</select>
         ) : cf.type === 'date' ? (
-          <input type="date" value={toISO(v)} onChange={(e) => set(fromISO(e.target.value))} />
+          <DateInput value={v} onChange={set} />
         ) : (
           <input type={cf.type === 'number' ? 'number' : 'text'} value={v} onChange={(e) => set(e.target.value)} />
         )}
@@ -102,7 +115,7 @@ export function resizeImage(file) {
 }
 
 /** onYes Promise qaytarsa, tugma "bajarilmoqda" holatida turadi; xato bo'lsa oynada ko'rsatiladi. */
-export function Confirm({ text, action, onYes, onClose }) {
+export function Confirm({ text, action, onYes, onClose, title = 'Tasdiqlang', danger = true }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const yes = async () => {
@@ -110,10 +123,114 @@ export function Confirm({ text, action, onYes, onClose }) {
     try { await onYes(); onClose(); } catch (e) { setErr(e.message); setBusy(false); }
   };
   return (
-    <Modal title="Tasdiqlang" onClose={onClose}
-      footer={<><button className="btn ghost" onClick={onClose}>Bekor qilish</button><button className="btn danger" disabled={busy} onClick={yes}>{busy ? 'Bajarilmoqda…' : action}</button></>}>
-      <p>{text}</p>
+    <Modal title={title} onClose={onClose} className="confirm"
+      footer={<><button className="btn ghost" onClick={onClose}>Bekor qilish</button><button className={'btn' + (danger ? ' danger' : '')} disabled={busy} onClick={yes}>{busy ? 'Bajarilmoqda…' : action}</button></>}>
+      <div className="confirm-body">
+        <span className={'confirm-ic' + (danger ? ' d' : '')} aria-hidden="true">{danger ? '!' : '?'}</span>
+        <p>{text}</p>
+      </div>
       <FormError error={err} />
     </Modal>
+  );
+}
+
+/** Matn so'raydigan chiroyli oyna (brauzerning prompt() o'rniga). */
+export function Prompt({ title, label, initial = '', action = 'Saqlash', onSubmit, onClose }) {
+  const [v, setV] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async (e) => {
+    e?.preventDefault();
+    if (!v.trim()) return;
+    setBusy(true); setErr('');
+    try { await onSubmit(v.trim()); onClose(); } catch (x) { setErr(x.message); setBusy(false); }
+  };
+  return (
+    <Modal title={title} onClose={onClose} className="confirm"
+      footer={<><button className="btn ghost" onClick={onClose}>Bekor qilish</button><button className="btn" type="submit" form="prompt-form" disabled={busy || !v.trim()}>{busy ? 'Saqlanmoqda…' : action}</button></>}>
+      <form id="prompt-form" onSubmit={submit} className="grid one">
+        <Field label={label}><input value={v} onChange={(e) => setV(e.target.value)} /></Field>
+      </form>
+      <FormError error={err} />
+    </Modal>
+  );
+}
+
+/* ───────────── Sana: doim dd.mm.yyyy ───────────── */
+const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+const WEEK = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
+const maskDate = (raw) => { const d = raw.replace(/\D/g, '').slice(0, 8); return [d.slice(0, 2), d.slice(2, 4), d.slice(4, 8)].filter(Boolean).join('.'); };
+
+export function DateInput({ value, onChange }) {
+  const [txt, setTxt] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  const wrap = useRef();
+  useEffect(() => { setTxt(value || ''); }, [value]);
+  const bad = txt && (txt.length < 10 || !parseDMY(txt));
+  return (
+    <div className="date-in" ref={wrap}>
+      <input inputMode="numeric" placeholder="dd.mm.yyyy" value={txt} className={bad ? 'warn' : ''} maxLength={10}
+        onChange={(e) => {
+          const t = maskDate(e.target.value);
+          setTxt(t);
+          if (!t) onChange('');
+          else if (t.length === 10 && parseDMY(t)) onChange(t);
+        }}
+        onBlur={() => { if (bad) setTxt(value || ''); }} />
+      <button type="button" className="icon-btn" aria-label="Taqvimni ochish" aria-expanded={open} onClick={() => setOpen(!open)}><Icon n="cal" s={17} /></button>
+      {open && <Calendar anchor={wrap} value={parseDMY(value)} onPick={(d) => { onChange(d ? fmt(d) : ''); setOpen(false); }} onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
+function Calendar({ anchor, value, onPick, onClose }) {
+  const start = value || new Date();
+  const [y, setY] = useState(start.getFullYear());
+  const [m, setM] = useState(start.getMonth());
+  const [pos, setPos] = useState(null);
+  const box = useRef();
+  useEffect(() => {
+    const r = anchor.current.getBoundingClientRect();
+    const W = 296, H = 340;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
+    const top = r.bottom + H + 8 < window.innerHeight ? r.bottom + 4 : Math.max(8, r.top - H - 4);
+    setPos({ left, top });
+    const out = (e) => { if (!box.current?.contains(e.target) && !anchor.current.contains(e.target)) onClose(); };
+    const esc = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    const scroll = (e) => { if (!box.current?.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', out);
+    document.addEventListener('keydown', esc, true);
+    window.addEventListener('scroll', scroll, true);
+    return () => { document.removeEventListener('mousedown', out); document.removeEventListener('keydown', esc, true); window.removeEventListener('scroll', scroll, true); };
+  }, []);
+  const first = new Date(y, m, 1);
+  const offset = (first.getDay() + 6) % 7;
+  const days = new Date(y, m + 1, 0).getDate();
+  const cells = [...Array(offset).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+  const same = (d, dd) => d && d.getFullYear() === y && d.getMonth() === m && d.getDate() === dd;
+  const shift = (k) => { const d = new Date(y, m + k, 1); setY(d.getFullYear()); setM(d.getMonth()); };
+  const thisYear = new Date().getFullYear();
+  if (!pos) return null;
+  return (
+    <div className="cal" ref={box} style={{ left: pos.left, top: pos.top }} role="dialog" aria-label="Taqvim">
+      <div className="cal-h">
+        <button type="button" className="icon-btn" aria-label="Oldingi oy" onClick={() => shift(-1)}><Icon n="left" s={16} /></button>
+        <select value={m} onChange={(e) => setM(+e.target.value)} aria-label="Oy">{MONTHS.map((n, i) => <option key={n} value={i}>{n}</option>)}</select>
+        <select value={y} onChange={(e) => setY(+e.target.value)} aria-label="Yil">
+          {Array.from({ length: thisYear - 1919 + 1 }, (_, i) => thisYear + 1 - i).map((v) => <option key={v}>{v}</option>)}
+        </select>
+        <button type="button" className="icon-btn" aria-label="Keyingi oy" onClick={() => shift(1)}><Icon n="right" s={16} /></button>
+      </div>
+      <div className="cal-g">
+        {WEEK.map((w) => <span key={w} className="cal-w">{w}</span>)}
+        {cells.map((d, i) => (d ? (
+          <button type="button" key={i} className={'cal-d' + (same(value, d) ? ' on' : '') + (same(new Date(), d) ? ' today' : '')} onClick={() => onPick(new Date(y, m, d, 12))}>{d}</button>
+        ) : <span key={i} />))}
+      </div>
+      <div className="cal-f">
+        <button type="button" className="btn ghost sm" onClick={() => onPick(new Date())}>Bugun</button>
+        <button type="button" className="btn ghost sm" onClick={() => onPick(null)}>Tozalash</button>
+      </div>
+    </div>
   );
 }

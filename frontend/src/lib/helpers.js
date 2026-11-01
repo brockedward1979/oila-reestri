@@ -124,7 +124,7 @@ export function famSummary(f) {
 }
 export const sortedMembers = (f) => [...f.azolar].sort((a, b) => (b.qarindoshlik === 'Arizachi') - (a.qarindoshlik === 'Arizachi') || (info(a).dob || 0) - (info(b).dob || 0));
 
-export const DEFAULT_SETTINGS = { stdMahalla: 'ЖАЛОИЛ МФЙ', stdSheet: 'Лист1', defaultMahalla: 'Jaloil MFY' };
+export const DEFAULT_SETTINGS = { stdMahalla: 'ЖАЛОИЛ МФЙ', stdSheet: 'Лист1', defaultMahalla: 'Jaloil MFY', stdColor: '1' };
 
 /** Telefonni +998 XX XXX XX XX ko'rinishiga keltiradi (yozish davomida). */
 export function formatPhone(v) {
@@ -134,4 +134,69 @@ export function formatPhone(v) {
   d = d.slice(0, 12);
   const p = [d.slice(0, 3), d.slice(3, 5), d.slice(5, 8), d.slice(8, 10), d.slice(10, 12)].filter(Boolean);
   return '+' + p.join(' ');
+}
+
+/* ───────────── Filtrlar ─────────────
+   Bir guruh ichidagi belgilar "yoki" bilan, turli guruhlar "va" bilan birlashadi. */
+const ageOfM = (m) => info(m).age;
+/** Farzandlar: arizachidan boshqa, "Qizi"/"O‘g‘li" yoki 18 yoshgacha bo'lgan a'zolar. */
+export const kidsOf = (f) => f.azolar.filter((m) => m.qarindoshlik !== 'Arizachi'
+  && (/^(Qizi|O‘g‘li)$/.test(m.qarindoshlik) || (ageOfM(m) != null && ageOfM(m) < 18)));
+const kidAge = (f, lo, hi) => kidsOf(f).some((m) => { const a = ageOfM(m); return a != null && a >= lo && a <= hi; });
+const anyMember = (f, k) => f.azolar.some((m) => STAT_BY_KEY[k].mem(m, info(m)));
+
+export const FILTER_GROUPS = [
+  { k: 'toifa', title: 'Oila toifasi', opts: [
+    { k: 'kambagal', label: 'Kambag‘al oila', test: (f) => f.toifa === 'kambagal', tone: 'k' },
+    { k: 'chegara', label: 'Kambag‘allik chegarasidagi oila', test: (f) => f.toifa === 'chegara', tone: 'c' },
+    { k: 'davlat', label: 'Davlat ta’minotidagi oila', test: (f) => f.toifa === 'davlat', tone: 'd' },
+  ] },
+  { k: 'bola', title: 'Farzandlari bo‘yicha', opts: [
+    { k: 'b02', label: 'Bog‘cha yoshiga yetmagan farzandi bor', hint: '0–2 yosh', test: (f) => kidAge(f, 0, 2) },
+    { k: 'b36', label: 'Bog‘cha yoshidagi farzandi bor', hint: '3–6 yosh', test: (f) => kidAge(f, 3, 6) },
+    { k: 'b717', label: 'Maktab yoshidagi farzandi bor', hint: '7–17 yosh', test: (f) => kidAge(f, 7, 17) },
+    { k: 'b18', label: 'Voyaga yetgan farzandi bor', hint: '18 yosh va katta', test: (f) => kidAge(f, 18, 200) },
+    { k: 'b3', label: 'Ko‘p bolali oila', hint: '18 yoshgacha 3 va undan ko‘p bola', test: (f) => kidsOf(f).filter((m) => { const a = ageOfM(m); return a != null && a < 18; }).length >= 3 },
+    { k: 'b0', label: 'Farzandi yo‘q', hint: 'tarkibda farzand ko‘rsatilmagan', test: (f) => kidsOf(f).length === 0 },
+  ] },
+  { k: 'azo', title: 'Oila a’zolari orasida', opts: [
+    { k: 'ishsiz', label: 'Ishsiz bor', test: (f) => anyMember(f, 'ishsiz') },
+    { k: 'migrant', label: 'Mehnat migranti bor', test: (f) => anyMember(f, 'migrant') },
+    { k: 'nogiron', label: 'Nogironligi bor a’zo bor', test: (f) => anyMember(f, 'nogiron') },
+    { k: 'pensioner', label: 'Pensioner bor', test: (f) => anyMember(f, 'pensioner') },
+    { k: 'yolgiz', label: 'Yolg‘iz ona (ota)', test: (f) => anyMember(f, 'yolgiz') },
+    { k: 'parvarish', label: '3 yoshgacha bola parvarishida', test: (f) => anyMember(f, 'parvarish') },
+    { k: 'jiem', label: 'JIEMda a’zosi bor', test: (f) => anyMember(f, 'jiem') },
+  ] },
+  { k: 'size', title: 'Oila tarkibi', opts: [
+    { k: 's12', label: '1–2 kishi', test: (f) => f.azolar.length <= 2 },
+    { k: 's34', label: '3–4 kishi', test: (f) => f.azolar.length >= 3 && f.azolar.length <= 4 },
+    { k: 's5', label: '5 kishi va undan ko‘p', test: (f) => f.azolar.length >= 5 },
+  ] },
+  { k: 'gap', title: 'To‘ldirilmagan ma’lumot', opts: [
+    { k: 'notel', label: 'Telefon raqami yo‘q', test: (f) => !f.telefon },
+    { k: 'noaddr', label: 'Manzili yo‘q', test: (f) => !f.manzil },
+    { k: 'noschool', label: 'O‘qish joyi kiritilmagan o‘quvchi bor', test: (f) => f.azolar.some((m) => STAT_BY_KEY.maktab.mem(m, info(m)) && !m.oquvJoyi) },
+    { k: 'nophoto', label: 'Rasmi yo‘q', test: (f) => !f.rasm },
+  ] },
+];
+export const FILTER_OPT = Object.fromEntries(FILTER_GROUPS.flatMap((g) => g.opts.map((o) => [o.k, { ...o, group: g.k }])));
+export const emptyFilters = () => Object.fromEntries(FILTER_GROUPS.map((g) => [g.k, []]));
+export const activeFilterKeys = (flt) => FILTER_GROUPS.flatMap((g) => flt[g.k] || []);
+
+/** skipGroup berilsa, shu guruhni hisobga olmaydi (variantlar yonidagi sonlarni hisoblash uchun). */
+export function applyFilters(fams, flt, skipGroup) {
+  return fams.filter((f) => FILTER_GROUPS.every((g) => {
+    if (g.k === skipGroup) return true;
+    const sel = flt[g.k] || [];
+    return !sel.length || sel.some((k) => FILTER_OPT[k].test(f));
+  }));
+}
+
+/** Tanlovni odam o'qiydigan qilib yozadi: "Kambag‘al oila · Maktab yoshidagi farzandi bor". */
+export function describeSelection(flt, q, statKey) {
+  const parts = FILTER_GROUPS.map((g) => (flt[g.k] || []).map((k) => FILTER_OPT[k].label).join(' yoki ')).filter(Boolean);
+  if (q) parts.push(`“${q}” qidiruvi`);
+  if (statKey && STAT_BY_KEY[statKey]) parts.push(STAT_BY_KEY[statKey].label);
+  return parts.length ? parts.join(' · ') : 'Barcha oilalar';
 }

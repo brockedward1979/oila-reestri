@@ -69,6 +69,8 @@ export default function Settings({ data, setData, reload, onClose, toast }) {
         <Field label="Mahalla ustunida yoziladigan nom"><input value={s.stdMahalla} onChange={(e) => setS({ ...s, stdMahalla: e.target.value })} /></Field>
         <Field label="Varaq nomi"><input value={s.stdSheet} onChange={(e) => setS({ ...s, stdSheet: e.target.value })} /></Field>
         <Field label="Yangi oilalar uchun mahalla"><input value={s.defaultMahalla} onChange={(e) => setS({ ...s, defaultMahalla: e.target.value })} /></Field>
+        <label className="check full"><input type="checkbox" checked={s.stdColor !== '0'} onChange={(e) => setS({ ...s, stdColor: e.target.checked ? '1' : '0' })} />
+          Standart jadvalda arizachi ismi katagini oila toifasi rangida bo‘yash (boshqarma jadvali bilan solishtirish uchun)</label>
       </div>
       <h3 className="sec">Zaxira nusxa</h3>
       <p className="muted">Ma’lumotlar serverdagi bazada saqlanadi. Zaxira nusxa — qo‘shimcha himoya va boshqa joyga ko‘chirish uchun.</p>

@@ -14,7 +14,7 @@ from ..serialize import apply_family, apply_member, family_out
 
 router = APIRouter(prefix="/api", tags=["sozlamalar"], dependencies=[Depends(current_user)])
 
-DEFAULT_SETTINGS = {"stdMahalla": "ЖАЛОИЛ МФЙ", "stdSheet": "Лист1", "defaultMahalla": "Jaloil MFY"}
+DEFAULT_SETTINGS = {"stdMahalla": "ЖАЛОИЛ МФЙ", "stdSheet": "Лист1", "defaultMahalla": "Jaloil MFY", "stdColor": "1"}
 DEFAULT_PRESET = {"name": "Oila boshliqlari ro‘yxati", "mode": "oila", "titleCase": True,
                   "cols": ["no", "mahalla", "boshliq", "boshliqJsh", "telefon", "toifa", "azoSoni", "u18Soni"]}
 

@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import {
-  DISABILITY, TOIFA, emptyMember, fmt, formatPhone, fromISO, fromJSH, head, toISO, withDerived,
+  DISABILITY, TOIFA, emptyMember, fmt, formatPhone, fromJSH, head, withDerived,
 } from '../lib/helpers.js';
-import { Avatar, CustomInputs, Field, FormError, Icon, Modal, TagPicker, resizeImage } from './ui.jsx';
+import { Avatar, CustomInputs, DateInput, Field, FormError, Icon, Modal, TagPicker, resizeImage } from './ui.jsx';
 
 export function MemberFields({ m, set, ctx }) {
   const j = fromJSH(m.jshshir);
@@ -28,7 +28,7 @@ export function MemberFields({ m, set, ctx }) {
           }} />
       </Field>
       <Field label="Tug‘ilgan sana" hint={j && m.tugilganSana && m.tugilganSana !== fmt(j.dob) ? `JSHSHIR bo‘yicha ${fmt(j.dob)}` : ''}>
-        <input type="date" value={toISO(m.tugilganSana)} max={toISO(fmt(new Date()))} onChange={(e) => set({ tugilganSana: fromISO(e.target.value) })} />
+        <DateInput value={m.tugilganSana} onChange={(v) => set({ tugilganSana: v })} />
       </Field>
       <Field label="Jinsi">
         <select value={m.jinsi} onChange={(e) => set({ jinsi: e.target.value })}><option value="">—</option><option>Ayol</option><option>Erkak</option></select>
@@ -125,7 +125,7 @@ export function FamilyForm({ initial, isNew, onSave, onClose, ctx }) {
           <Field label="Telefon raqami"><input inputMode="tel" value={f.telefon} placeholder="+998 __ ___ __ __" onChange={(e) => set({ telefon: formatPhone(e.target.value) })} /></Field>
           <Field label="Manzil" full><input value={f.manzil} placeholder="Ko‘cha, uy raqami" onChange={(e) => set({ manzil: e.target.value })} /></Field>
           <Field label="Hujjat raqami"><input value={f.hujjatRaqami} onChange={(e) => set({ hujjatRaqami: e.target.value })} /></Field>
-          <Field label="Reyestrga kirgan sana"><input type="date" value={toISO(f.reyestrSana)} onChange={(e) => set({ reyestrSana: fromISO(e.target.value) })} /></Field>
+          <Field label="Reyestrga kirgan sana"><DateInput value={f.reyestrSana} onChange={(v) => set({ reyestrSana: v })} /></Field>
           <Field label="Savolnoma ID"><input value={f.savolnomaId} onChange={(e) => set({ savolnomaId: e.target.value })} /></Field>
           <Field label="Daromad (so‘m)"><input type="number" min="0" value={f.daromad} onChange={(e) => set({ daromad: Math.max(0, Number(e.target.value) || 0) })} /></Field>
           <CustomInputs fields={ctx.customFields} scope="oila" value={f.extra} onChange={(extra) => set({ extra })} />

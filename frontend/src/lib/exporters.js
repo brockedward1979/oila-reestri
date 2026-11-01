@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { TOIFA_STYLE, addKeyValues, addTable, addTitle, newWorkbook, saveBlob, saveWorkbook } from './excel.js';
 import {
   TOIFA, STAT_BY_KEY, fmt, parseDMY, info, duration, head, titleCase, initials, childrenOf,
   memberHit, esc, famSummary, sortedMembers,
@@ -55,50 +55,51 @@ export function fieldCatalog(customFields) {
   }
   return list;
 }
-export function downloadSheet(sheets, filename) {
-  const wb = XLSX.utils.book_new();
-  for (const s of sheets) {
-    const ws = XLSX.utils.aoa_to_sheet(s.rows, { cellDates: true, dateNF: 'dd\\.mm\\.yyyy' });
-    ws['!cols'] = s.rows[0].map((_, ci) => ({
-      wch: Math.min(48, Math.max(6, ...s.rows.slice(0, 200).map((r) => {
-        const v = r[ci]; return v instanceof Date ? 11 : String(v ?? '').length + 2;
-      }))),
-    }));
-    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-    XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0, 31));
-  }
-  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellDates: true });
-  saveBlob(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename);
-}
-export function saveBlob(blob, filename) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-}
+export { saveBlob };
 export const today = () => fmt(new Date()).replace(/\./g, '-');
+const fileSafe = (s) => String(s || 'Jadval').replace(/[^\p{L}\p{N}]+/gu, '_');
+const sheetName = (s) => String(s || 'Jadval').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31);
 
-export function exportStandard(fams, settings) {
+export async function exportStandard(fams, settings) {
   const ord = ['Birinchi', 'Ikkinchi', 'Uchinchi', "To'rtinchi", 'Beshinchi', 'Oltinchi', 'Yettinchi', 'Sakkizinchi', "To'qqizinchi", "O'ninchi", "O'n birinchi", "O'n ikkinchi"];
   const kidsAll = fams.map(childrenOf);
   const maxK = Math.min(12, Math.max(4, ...kidsAll.map((k) => k.length)));
   const header = ['№', 'Mahalla', 'Reyestrdagi shaxs Ism familiyasi', 'Telefon raqami'];
   for (let k = 0; k < maxK; k++) header.push(`${ord[k]} farzand ism familiyasi`, "Tug'ilgan sanasi", "Qayerda o'qiydi (to'liq yozing)");
-  const rows = [header];
-  fams.forEach((f, i) => {
+  const rows = fams.map((f, i) => {
     const r = [i + 1, settings.stdMahalla || f.mahalla, titleCase(head(f)?.fio), f.telefon || ''];
     kidsAll[i].slice(0, maxK).forEach((m) => r.push(m.fio, info(m).dob || '', m.oquvJoyi || ''));
-    rows.push(r);
+    return r;
   });
+  const color = settings.stdColor !== '0';
+  const wb = await newWorkbook();
+  const ws = wb.addWorksheet(sheetName(settings.stdSheet || 'Лист1'), { views: [{ state: 'frozen', ySplit: 1 }] });
+  // Ism katagi oila toifasi rangida: boshqarma jadvali bilan solishtirganda toifa o'zgargani darrov ko'rinadi
+  addTable(ws, { header, rows, styleCell: (ri, ci) => (color && ci === 2 ? TOIFA_STYLE[fams[ri].toifa] : null) });
+
   const byMfy = {};
   fams.forEach((f, i) => {
     const key = settings.stdMahalla || f.mahalla;
-    byMfy[key] = byMfy[key] || { o: 0, k: 0 }; byMfy[key].o++; byMfy[key].k += kidsAll[i].length;
+    byMfy[key] = byMfy[key] || { o: 0, k: 0, t: { kambagal: 0, chegara: 0, davlat: 0 } };
+    byMfy[key].o++; byMfy[key].k += kidsAll[i].length; byMfy[key].t[f.toifa]++;
   });
-  const svod = [['№', 'МФЙ', 'Oilalar soni', 'Farzandlar soni']];
-  Object.entries(byMfy).forEach(([k, v], i) => svod.push([i + 1, k, v.o, v.k]));
-  svod.push(['', 'Jami', fams.length, kidsAll.reduce((a, k) => a + k.length, 0)]);
-  downloadSheet([{ name: settings.stdSheet || 'Лист1', rows }, { name: 'Свод', rows: svod }], `Standart_jadval_${today()}.xlsx`);
+  const svodRows = Object.entries(byMfy).map(([k, v], i) => [i + 1, k, v.o, v.t.kambagal, v.t.chegara, v.t.davlat, v.k]);
+  const sum = (ix) => svodRows.reduce((a, r) => a + r[ix], 0);
+  svodRows.push(['', 'Jami', sum(2), sum(3), sum(4), sum(5), sum(6)]);
+  const sv = wb.addWorksheet('Свод', { views: [{ state: 'frozen', ySplit: 1 }] });
+  addTable(sv, {
+    header: ['№', 'МФЙ', 'Oilalar soni', 'Kambag‘al', 'Kambag‘allik chegarasida', 'Davlat ta’minotida', 'Farzandlar soni'], rows: svodRows,
+    styleCell: (ri, ci) => (ci === 3 ? TOIFA_STYLE.kambagal : ci === 4 ? TOIFA_STYLE.chegara : ci === 5 ? TOIFA_STYLE.davlat : null),
+  });
+  if (color) {
+    const lg = wb.addWorksheet('Ranglar izohi');
+    addTable(lg, {
+      header: ['Rang', 'Oila toifasi'], rows: Object.entries(TOIFA).map(([, v]) => ['', v.label]),
+      styleCell: (ri, ci) => (ci === 0 ? TOIFA_STYLE[Object.keys(TOIFA)[ri]] : null),
+    });
+    lg.getColumn(1).width = 12;
+  }
+  await saveWorkbook(wb, `Standart_jadval_${today()}.xlsx`);
 }
 
 export function famFacts(f, customFields) {
@@ -192,33 +193,49 @@ export async function famDOCX(f, customFields) {
   saveBlob(await Packer.toBlob(doc), docName(f, 'docx'));
 }
 
-export function famXLSX(f, customFields) {
+export async function famXLSX(f, customFields) {
   const h = head(f) || {};
-  const rows = [['Oila ma’lumotnomasi'], [f.mahalla], ['Oila boshlig‘i', h.fio], ...famFacts(f, customFields).filter(([, v]) => v), [],
-    famSummary(f).map((s) => s.l), famSummary(f).map((s) => s.v), [], ['Oila tarkibi'], MEMBER_COLS,
-    ...sortedMembers(f).map((m, i) => { const c = memberCells(m, i); c[3] = info(m).dob || ''; return c; })];
+  const wb = await newWorkbook();
+  const ws = wb.addWorksheet('Oila ma’lumotnomasi');
   const width = MEMBER_COLS.length;
-  downloadSheet([{ name: 'Oila', rows: rows.map((r) => [...r, ...Array(Math.max(0, width - r.length)).fill('')]) }], docName(f, 'xlsx'));
+  let r = addTitle(ws, 1, 'Oila ma’lumotnomasi', width, `${f.mahalla || ''}. Tayyorlangan sana: ${fmt(new Date())}`);
+  const facts = [['Oila boshlig‘i', h.fio], ...famFacts(f, customFields).filter(([, v]) => v)]
+    .map(([k, v]) => [k, k === 'Tug‘ilgan sana' || k === 'Reyestrga kirgan sana' ? parseDMY(v) || v : v]);
+  r = addKeyValues(ws, r + 1, facts, (k) => (k === 'Toifa' ? TOIFA_STYLE[f.toifa] : null)) + 2;
+  const sum = famSummary(f);
+  r = addTable(ws, { header: sum.map((s) => s.l), rows: [sum.map((s) => s.v)], startRow: r }) + 2;
+  ws.autoFilter = undefined;
+  const title = ws.getCell(r, 1);
+  title.value = `Oila tarkibi, ${f.azolar.length} kishi`;
+  title.font = { name: 'Arial', size: 12, bold: true };
+  const rows = sortedMembers(f).map((m, i) => { const c = memberCells(m, i); c[3] = info(m).dob || ''; return c; });
+  addTable(ws, { header: MEMBER_COLS, rows, startRow: r + 1, center: [0, 4, 5, 6] });
+  ws.getColumn(1).width = Math.max(ws.getColumn(1).width, 26);
+  ws.getColumn(2).width = Math.max(ws.getColumn(2).width, 42);
+  await saveWorkbook(wb, docName(f, 'xlsx'));
 }
 
 /** "Jadvalni sozlash" oynasidagi tanlangan ustunlar bo'yicha xlsx yaratadi. Qatorlar sonini qaytaradi. */
-export function runCustomExport({ families, cfg, cols, customFields, onlyStat }) {
+export async function runCustomExport({ families, cfg, cols, customFields, onlyStat, subtitle }) {
   const byId = Object.fromEntries(fieldCatalog(customFields).map((c) => [c.id, c]));
-  const rows = [cols.map((c) => byId[c].label)];
+  const rows = [];
+  const toifaOf = [];
   let ri = 0;
   families.forEach((f, fi) => {
-    if (cfg.mode === 'oila') {
-      const cx = { f, fi, ri: ri++ };
-      rows.push(cols.map((c) => byId[c].get(cx, cfg) ?? ''));
-    } else {
-      f.azolar.forEach((m) => {
-        if (onlyStat?.mem && !memberHit(onlyStat, m)) return;
-        const cx = { f, m, fi, ri: ri++ };
-        rows.push(cols.map((c) => byId[c].get(cx, cfg) ?? ''));
-      });
-    }
+    const push = (cx) => { rows.push(cols.map((c) => byId[c].get(cx, cfg) ?? '')); toifaOf.push(f.toifa); };
+    if (cfg.mode === 'oila') push({ f, fi, ri: ri++ });
+    else f.azolar.forEach((m) => { if (!(onlyStat?.mem && !memberHit(onlyStat, m))) push({ f, m, fi, ri: ri++ }); });
   });
+  const toifaCol = cols.indexOf('toifa');
   const name = cfg.name || 'Jadval';
-  downloadSheet([{ name, rows }], `${name.replace(/[^\p{L}\p{N}]+/gu, '_')}_${today()}.xlsx`);
-  return rows.length - 1;
+  const wb = await newWorkbook();
+  const ws = wb.addWorksheet(sheetName(name));
+  const start = addTitle(ws, 1, name, cols.length, subtitle) + 1;
+  ws.views = [{ state: 'frozen', ySplit: start }];
+  addTable(ws, {
+    header: cols.map((c) => byId[c].label), rows, startRow: start,
+    styleCell: (r, ci) => (ci === toifaCol ? TOIFA_STYLE[toifaOf[r]] : null),
+  });
+  await saveWorkbook(wb, `${fileSafe(name)}_${today()}.xlsx`);
+  return rows.length;
 }

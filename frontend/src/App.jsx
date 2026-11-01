@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, auth, setUnauthorizedHandler } from './api.js';
 import {
-  DEFAULT_SETTINGS, RELATIONS, STATS, STAT_BY_KEY, TAGS, TOIFA, countStat, fmt, head, memberHit, norm, parseDMY,
+  DEFAULT_SETTINGS, FILTER_OPT, RELATIONS, STAT_BY_KEY, TAGS, TOIFA, activeFilterKeys, applyFilters,
+  describeSelection, emptyFilters, fmt, head, memberHit, norm, parseDMY,
 } from './lib/helpers.js';
 import { exportStandard } from './lib/exporters.js';
-import { Confirm, Icon } from './components/ui.jsx';
+import { Confirm, Icon, Modal } from './components/ui.jsx';
 import { FamilyForm, MemberForm } from './components/forms.jsx';
 import ExportBuilder from './components/ExportBuilder.jsx';
 import Settings from './components/Settings.jsx';
 import FamilyItem from './components/FamilyItem.jsx';
 import Login from './components/Login.jsx';
+import Ledger from './components/Ledger.jsx';
+import FilterPanel from './components/FilterPanel.jsx';
 
 const EMPTY = { families: [], customFields: [], presets: [], settings: DEFAULT_SETTINGS };
 
@@ -25,7 +28,9 @@ function Registry({ onLogout }) {
   const [status, setStatus] = useState('loading');
   const [loadErr, setLoadErr] = useState('');
   const [q, setQ] = useState('');
-  const [toifa, setToifa] = useState('');
+  const [flt, setFlt] = useState(emptyFilters);
+  const [fpOpen, setFpOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [sort, setSort] = useState('name');
   const [statKey, setStatKey] = useState('');
   const [openId, setOpenId] = useState(null);
@@ -45,16 +50,24 @@ function Registry({ onLogout }) {
   useEffect(() => { load(); }, [load]);
 
   const fams = data.families;
-  const base = useMemo(() => {
+  const searched = useMemo(() => {
     const nq = norm(q.trim());
-    let list = fams.filter((f) => !toifa || f.toifa === toifa);
-    if (nq) list = list.filter((f) => f.azolar.some((m) => norm(m.fio).includes(nq) || (m.jshshir || '').includes(nq)) || norm(f.telefon).replace(/\s/g, '').includes(nq.replace(/\s/g, '')));
-    const key = { name: (f) => head(f)?.fio || '', size: (f) => -f.azolar.length, reg: (f) => -(parseDMY(f.reyestrSana) || 0) }[sort];
-    return [...list].sort((a, b) => { const x = key(a), y = key(b); return typeof x === 'string' ? x.localeCompare(y) : x - y; });
-  }, [fams, q, toifa, sort]);
+    if (!nq) return fams;
+    return fams.filter((f) => f.azolar.some((m) => norm(m.fio).includes(nq) || (m.jshshir || '').includes(nq)) || norm(f.telefon).replace(/\s/g, '').includes(nq.replace(/\s/g, '')));
+  }, [fams, q]);
+  const base = useMemo(() => {
+    const key = {
+      name: (f) => head(f)?.fio || '', size: (f) => -f.azolar.length,
+      reg: (f) => -(parseDMY(f.reyestrSana) || 0), regOld: (f) => +(parseDMY(f.reyestrSana) || 0),
+    }[sort];
+    return [...applyFilters(searched, flt)].sort((a, b) => { const x = key(a), y = key(b); return typeof x === 'string' ? x.localeCompare(y) : x - y; });
+  }, [searched, flt, sort]);
   const stat = STAT_BY_KEY[statKey];
   const visible = useMemo(() => (!stat ? base : base.filter((f) => (stat.fam ? stat.fam(f) : f.azolar.some((m) => memberHit(stat, m))))), [base, stat]);
-  const totals = useMemo(() => Object.fromEntries(STATS.flatMap((g) => g.items).map((s) => [s.k, countStat(s, base)])), [base]);
+  const selection = describeSelection(flt, q.trim());
+  const visibleMembers = visible.reduce((a, f) => a + f.azolar.length, 0);
+  const activeKeys = activeFilterKeys(flt);
+  const anyActive = activeKeys.length || q.trim() || statKey;
 
   const allJsh = useMemo(() => { const mp = new Map(); fams.forEach((f) => f.azolar.forEach((m) => m.jshshir && mp.set(m.jshshir, m))); return mp; }, [fams]);
   const extraTags = useMemo(() => [...new Set(fams.flatMap((f) => f.azolar.flatMap((m) => m.holat || [])))].filter((t) => !TAGS.includes(t)), [fams]);
@@ -86,13 +99,17 @@ function Registry({ onLogout }) {
     f: { mahalla: data.settings.defaultMahalla, toifa: 'kambagal', telefon: '', manzil: '', hujjatRaqami: '', reyestrSana: fmt(new Date()), savolnomaId: '', daromad: 0, izoh: '', rasm: '', extra: {} },
   });
   const pickStat = (k) => {
-    setStatKey(k === statKey || k === 'oila' || k === 'azo' ? '' : k); setOpenId(null);
-    listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setStatKey(k === statKey || k === 'oila' || k === 'azo' ? '' : k); setOpenId(null); setStatsOpen(false);
+    const top = (listRef.current?.getBoundingClientRect().top || 0) + window.scrollY - 8;
+    if (window.scrollY > top) window.scrollTo({ top, behavior: 'smooth' });
   };
-  const clearFilters = () => { setQ(''); setToifa(''); setStatKey(''); };
+  const clearFilters = () => { setQ(''); setFlt(emptyFilters()); setStatKey(''); };
+  const removeFilter = (k) => { const g = FILTER_OPT[k].group; setFlt((f) => ({ ...f, [g]: f[g].filter((x) => x !== k) })); };
+  const toggleToifa = (k) => setFlt((f) => ({ ...f, toifa: k ? (f.toifa.includes(k) ? f.toifa.filter((x) => x !== k) : [...f.toifa, k]) : [] }));
+  const ledger = <Ledger fams={base} statKey={statKey} onPick={pickStat} selection={selection} />;
 
   return (
-    <div className="app">
+    <div className={'app' + (status === 'ready' ? ' has-dock' : '')}>
       <datalist id="rel-list">{RELATIONS.map((r) => <option key={r} value={r} />)}</datalist>
       <datalist id="school-list">{schools.map((r) => <option key={r} value={r} />)}</datalist>
       <header className="top">
@@ -103,7 +120,7 @@ function Registry({ onLogout }) {
         </div>
         <div className="top-act">
           <button className="btn" disabled={status !== 'ready'} onClick={newFamily}><Icon n="plus" s={16} /> Oila qo‘shish</button>
-          <button className="btn ghost" disabled={status !== 'ready'} onClick={() => { exportStandard(fams, data.settings); toast('Standart jadval yuklab olindi'); }}><Icon n="down" s={16} /> Standart jadval</button>
+          <button className="btn ghost" disabled={status !== 'ready'} onClick={async () => { try { await exportStandard(fams, data.settings); toast('Standart jadval yuklab olindi'); } catch { toast('Excel faylni tayyorlab bo‘lmadi'); } }}><Icon n="down" s={16} /> Standart jadval</button>
           <button className="btn ghost" disabled={status !== 'ready'} onClick={() => setModal({ t: 'export' })}><Icon n="cols" s={16} /> Jadvalni sozlash</button>
           <span className="top-icons">
             <button className="icon-btn bordered" aria-label="Sozlamalar" title="Sozlamalar" disabled={status !== 'ready'} onClick={() => setModal({ t: 'settings' })}><Icon n="gear" /></button>
@@ -112,79 +129,87 @@ function Registry({ onLogout }) {
         </div>
       </header>
 
-      <div className="tools" ref={listRef}>
-        <label className="search"><Icon n="search" s={16} />
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism, JSHSHIR yoki telefon bo‘yicha qidirish" aria-label="Qidirish" />
-          {q && <button className="icon-btn" aria-label="Qidiruvni tozalash" onClick={() => setQ('')}><Icon n="x" s={16} /></button>}
-        </label>
-        <div className="filters">
-          <div className="chips" role="group" aria-label="Toifa">
-            {[['', 'Barchasi'], ...Object.entries(TOIFA).map(([k, v]) => [k, v.short])].map(([k, l]) => (
-              <button key={k} className={'fchip' + (k ? ' t-' + k : '') + (toifa === k ? ' on' : '')} aria-pressed={toifa === k} onClick={() => setToifa(k)}>
-                {l} <span className="num">{k ? fams.filter((f) => f.toifa === k).length : fams.length}</span>
+      <div className="layout">
+        <main className="main">
+          <div className={"tools" + (fpOpen ? " fp-open" : "")} ref={listRef}>
+            <div className="tools-row">
+              <label className="search"><Icon n="search" s={16} />
+                <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism, JSHSHIR yoki telefon bo‘yicha qidirish" aria-label="Qidirish" />
+                {q && <button className="icon-btn" aria-label="Qidiruvni tozalash" onClick={() => setQ('')}><Icon n="x" s={16} /></button>}
+              </label>
+              <div className="fp-wrap">
+                <button className={'btn ghost fp-btn' + (activeKeys.length ? ' active' : '')} aria-expanded={fpOpen} onClick={() => setFpOpen(!fpOpen)}>
+                  <Icon n="filter" s={16} /><span className="fp-btn-t">Filtr</span>
+                  {activeKeys.length > 0 && <span className="badge num">{activeKeys.length}</span>}
+                </button>
+                {fpOpen && <FilterPanel fams={searched} flt={flt} setFlt={setFlt} sort={sort} setSort={setSort} resultCount={base.length} onClose={() => setFpOpen(false)} />}
+              </div>
+            </div>
+            <div className="chips" role="group" aria-label="Oila toifasi">
+              <button className={'fchip' + (!flt.toifa.length ? ' on' : '')} aria-pressed={!flt.toifa.length} onClick={() => toggleToifa('')}>
+                Barchasi <span className="num">{fams.length}</span>
               </button>
-            ))}
+              {Object.entries(TOIFA).map(([k, v]) => (
+                <button key={k} className={'fchip t-' + k + (flt.toifa.includes(k) ? ' on' : '')} aria-pressed={flt.toifa.includes(k)} onClick={() => toggleToifa(k)}>
+                  {flt.toifa.includes(k) && <span aria-hidden="true">✓</span>}{v.short} <span className="num">{fams.filter((f) => f.toifa === k).length}</span>
+                </button>
+              ))}
+            </div>
+            <div className={'selbar' + (anyActive ? ' active' : '')} aria-live="polite">
+              <span className="sel-count"><b className="num">{visible.length}</b> oila, <b className="num">{visibleMembers}</b> kishi</span>
+              {!anyActive && <span className="sel-all">Barcha oilalar ko‘rsatilmoqda</span>}
+              {q.trim() && <button className="selchip" onClick={() => setQ('')}>“{q.trim()}” <Icon n="x" s={12} /></button>}
+              {activeKeys.map((k) => (
+                <button key={k} className={'selchip' + (FILTER_OPT[k].tone ? ' tone-' + FILTER_OPT[k].tone : '')} onClick={() => removeFilter(k)} aria-label={`${FILTER_OPT[k].label} filtrini olib tashlash`}>
+                  {FILTER_OPT[k].label}{FILTER_OPT[k].hint ? ` (${FILTER_OPT[k].hint})` : ''} <Icon n="x" s={12} />
+                </button>
+              ))}
+              {stat && <button className="selchip stat" onClick={() => setStatKey('')} aria-label="Ko‘rsatkich filtrini olib tashlash">{stat.label} <Icon n="x" s={12} /></button>}
+              {anyActive && <button className="sel-clear" onClick={clearFilters}>Hammasini tozalash</button>}
+            </div>
           </div>
-          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Saralash" title="Saralash">
-            <option value="name">A–Z</option><option value="size">Ko‘p a’zoli</option><option value="reg">Yangi kirgan</option>
-          </select>
-        </div>
-        {stat && (
-          <div className="active-stat">
-            <span>Ko‘rsatilmoqda: <b>{stat.label}</b>, {visible.length} oila</span>
-            <button className="btn ghost sm" onClick={() => setStatKey('')}><Icon n="x" s={14} /> Filtrni olib tashlash</button>
-          </div>
-        )}
+
+          {status === 'loading' && <ul className="fams" aria-busy="true" aria-label="Yuklanmoqda">{Array.from({ length: 6 }, (_, i) => <li key={i} className="fam skel" />)}</ul>}
+          {status === 'error' && (
+            <div className="empty">
+              <p><b>Ma’lumotlarni yuklab bo‘lmadi.</b></p><p className="muted">{loadErr}</p>
+              <p className="muted">Bepul serverda birinchi so‘rov 30–60 soniya olishi mumkin.</p>
+              <button className="btn" onClick={load}><Icon n="refresh" s={16} /> Qayta urinish</button>
+            </div>
+          )}
+          {status === 'ready' && (<>
+            <div className="thead" aria-hidden="true">
+              <span className="c-no">№</span><span /><span className="c-name">Oila boshlig‘i</span><span className="c-toifa">Toifa</span>
+              <span className="c-n">A’zolar</span><span className="c-k">Bolalar</span><span className="c-tel">Telefon</span><span className="c-reg">Reyestrga kirgan</span><span />
+            </div>
+            {visible.length ? (
+              <ul className={'fams' + (stat?.mem ? ' with-hits' : '')}>
+                {visible.map((f, i) => (
+                  <FamilyItem key={f.id} f={f} idx={i} open={openId === f.id} onToggle={() => setOpenId(openId === f.id ? null : f.id)}
+                    stat={stat} ops={ops(f)} customFields={data.customFields} toast={toast} />
+                ))}
+              </ul>
+            ) : (
+              <div className="empty">
+                {fams.length ? <><p>Bu shartlarga mos oila topilmadi.</p><button className="btn ghost" onClick={clearFilters}>Barcha oilalarni ko‘rsatish</button></>
+                  : <><p>Reestr hozircha bo‘sh.</p><p className="muted">Oila qo‘shing yoki Sozlamalar orqali zaxira fayldan ma’lumot yuklang.</p><button className="btn" onClick={newFamily}><Icon n="plus" s={16} /> Oila qo‘shish</button></>}
+              </div>
+            )}
+          </>)}
+        </main>
+        {status === 'ready' && <aside className="side" aria-label="Jami ko‘rsatkichlar">{ledger}</aside>}
       </div>
 
-      {status === 'loading' && <ul className="fams" aria-busy="true" aria-label="Yuklanmoqda">{Array.from({ length: 6 }, (_, i) => <li key={i} className="fam skel" />)}</ul>}
-      {status === 'error' && (
-        <div className="empty">
-          <p><b>Ma’lumotlarni yuklab bo‘lmadi.</b></p><p className="muted">{loadErr}</p>
-          <p className="muted">Bepul serverda birinchi so‘rov 30–60 soniya olishi mumkin.</p>
-          <button className="btn" onClick={load}><Icon n="refresh" s={16} /> Qayta urinish</button>
+      {status === 'ready' && (
+        <div className="dock">
+          <div className="dock-t">
+            <b><span className="num">{visible.length}</span> oila, <span className="num">{visibleMembers}</span> kishi</b>
+            <span>{describeSelection(flt, q.trim(), statKey)}</span>
+          </div>
+          <button className="btn" onClick={() => setStatsOpen(true)}><Icon n="chart" s={16} /> Ko‘rsatkichlar</button>
         </div>
       )}
-      {status === 'ready' && (<>
-        <div className="thead" aria-hidden="true">
-          <span className="c-no">№</span><span /><span className="c-name">Oila boshlig‘i</span><span className="c-toifa">Toifa</span>
-          <span className="c-n">A’zolar</span><span className="c-k">Bolalar</span><span className="c-tel">Telefon</span><span className="c-reg">Reyestrga kirgan</span><span />
-        </div>
-        {visible.length ? (
-          <ul className={'fams' + (stat?.mem ? ' with-hits' : '')}>
-            {visible.map((f, i) => (
-              <FamilyItem key={f.id} f={f} idx={i} open={openId === f.id} onToggle={() => setOpenId(openId === f.id ? null : f.id)}
-                stat={stat} ops={ops(f)} customFields={data.customFields} toast={toast} />
-            ))}
-          </ul>
-        ) : (
-          <div className="empty">
-            {fams.length ? <><p>Bu shartlarga mos oila topilmadi.</p><button className="btn ghost" onClick={clearFilters}>Barcha oilalarni ko‘rsatish</button></>
-              : <><p>Reestr hozircha bo‘sh.</p><p className="muted">Oila qo‘shing yoki Sozlamalar orqali zaxira fayldan ma’lumot yuklang.</p><button className="btn" onClick={newFamily}><Icon n="plus" s={16} /> Oila qo‘shish</button></>}
-          </div>
-        )}
-
-        <section className="ledger" aria-labelledby="ledger-h">
-          <div className="ledger-top">
-            <h2 id="ledger-h">Jami ko‘rsatkichlar</h2>
-            <p className="muted">{q || toifa ? 'Qidiruv va toifa filtri bo‘yicha hisoblangan.' : 'Barcha oilalar bo‘yicha.'} Raqamni bossangiz, ro‘yxatda faqat shu guruhga tegishli oilalar qoladi.</p>
-          </div>
-          <div className="lg-grid">
-            {STATS.map((g, gi) => (
-              <div key={g.group} className={'lg lg-' + gi}>
-                <h3>{g.group}</h3>
-                <div className="lg-items">
-                  {g.items.map((s) => (
-                    <button key={s.k} className={'stat' + (s.tone ? ' tone-' + s.tone : '') + (statKey === s.k ? ' on' : '')} aria-pressed={statKey === s.k} onClick={() => pickStat(s.k)}>
-                      <span className="sv num">{totals[s.k]}</span><span className="sl">{s.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </>)}
+      {statsOpen && <Modal title="Jami ko‘rsatkichlar" onClose={() => setStatsOpen(false)} className="stats-sheet">{ledger}</Modal>}
 
       {modal?.t === 'family' && (
         <FamilyForm initial={modal.f} isNew={modal.isNew} ctx={ctx} onClose={() => setModal(null)}
@@ -205,7 +230,7 @@ function Registry({ onLogout }) {
           }} />
       )}
       {modal?.t === 'confirm' && <Confirm text={modal.text} action={modal.action} onYes={modal.yes} onClose={() => setModal(null)} />}
-      {modal?.t === 'export' && <ExportBuilder data={data} setData={setData} visible={visible} statKey={statKey} onClose={() => setModal(null)} toast={toast} />}
+      {modal?.t === 'export' && <ExportBuilder data={data} setData={setData} visible={visible} statKey={statKey} selection={describeSelection(flt, q.trim(), statKey)} onClose={() => setModal(null)} toast={toast} />}
       {modal?.t === 'settings' && <Settings data={data} setData={setData} reload={load} onClose={() => setModal(null)} toast={toast} />}
       <div className={'toast' + (msg ? ' show' : '')} role="status" aria-live="polite">{msg}</div>
     </div>

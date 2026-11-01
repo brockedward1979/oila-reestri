@@ -1,0 +1,14 @@
+# Muhit va maxfiy fayllar
+.env
+*.env.local
+# Shaxsiy ma'lumotlar Git'ga tushmasin
+boshlangich_malumot.json
+*zaxira*.json
+backend/local.db
+# Kutubxonalar va build
+node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+.venv/
+venv/

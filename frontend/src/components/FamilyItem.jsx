@@ -51,16 +51,19 @@ function DocPreview({ html }) {
 function DocBox({ f, customFields, toast }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState('');
+  const box = useRef();
   const run = async (kind, fn) => {
     setBusy(kind);
     try { await fn(f, customFields); toast(`${kind} fayl yuklab olindi`); } catch (e) { console.error(e); toast(`${kind} faylni tayyorlab bo‘lmadi`); }
     setBusy('');
   };
+  const close = () => { setOpen(false); box.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
   return (
-    <div className={'docbox' + (open ? ' open' : '')}>
-      <button className="docbox-h" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span><b>Oila ma’lumotnomasi</b><span className="muted">Ko‘rish va PDF, Word, Excel ko‘rinishida yuklab olish</span></span>
-        <span className="c-chev"><Icon n="chev" /></span>
+    <div className={'docbox' + (open ? ' open' : '')} ref={box}>
+      <button className="docbox-h" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+        <span className="docbox-ic" aria-hidden="true"><Icon n="doc" s={20} /></span>
+        <span className="docbox-t"><b>Oila ma’lumotnomasi</b><span>{open ? 'Ko‘rib chiqing va kerakli formatda yuklab oling' : 'Ko‘rish va PDF, Word, Excel ko‘rinishida yuklab olish'}</span></span>
+        <span className="docbox-tg">{open ? 'Yopish' : 'Ochish'} <Icon n={open ? 'up' : 'chev'} s={16} /></span>
       </button>
       {open && (
         <div className="docbox-b">
@@ -70,6 +73,7 @@ function DocBox({ f, customFields, toast }) {
             <button className="btn sm fmt-xls" disabled={!!busy} onClick={() => run('Excel', famXLSX)}><Icon n="down" s={16} /> {busy === 'Excel' ? 'Tayyorlanmoqda…' : 'Excel'}</button>
           </div>
           <DocPreview html={famDocHTML(f, customFields)} />
+          <button className="docbox-close" onClick={close}><Icon n="up" s={16} /> Ma’lumotnomani yopish</button>
         </div>
       )}
     </div>
