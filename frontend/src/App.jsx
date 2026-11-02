@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, auth, setUnauthorizedHandler } from './api.js';
+import { api, auth, setUnauthorizedHandler, wakeServer } from './api.js';
 import {
   DEFAULT_SETTINGS, FILTER_OPT, RELATIONS, STAT_BY_KEY, TAGS, TOIFA, activeFilterKeys, applyFilters,
   describeSelection, emptyFilters, fmt, head, memberHit, norm, parseDMY,
@@ -18,7 +18,7 @@ const EMPTY = { families: [], customFields: [], presets: [], settings: DEFAULT_S
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!auth.token);
-  useEffect(() => setUnauthorizedHandler(() => setAuthed(false)), []);
+  useEffect(() => { setUnauthorizedHandler(() => setAuthed(false)); wakeServer(); }, []);
   if (!authed) return <Login onLogin={() => setAuthed(true)} />;
   return <Registry onLogout={() => { auth.clear(); setAuthed(false); }} />;
 }
@@ -40,12 +40,20 @@ function Registry({ onLogout }) {
   const listRef = useRef();
   const toast = useCallback((t) => { setMsg(t); clearTimeout(tRef.current); tRef.current = setTimeout(() => setMsg(''), 3000); }, []);
 
+  const [slow, setSlow] = useState(false);
   const load = useCallback(async () => {
-    setStatus((s) => (s === 'ready' ? 'ready' : 'loading')); setLoadErr('');
+    setStatus((s) => (s === 'ready' ? 'ready' : 'loading')); setLoadErr(''); setSlow(false);
+    const timer = setTimeout(() => setSlow(true), 3500);
     try {
-      const [families, customFields, presets, settings] = await Promise.all([api.families(), api.customFields(), api.presets(), api.settings()]);
-      setData({ families, customFields, presets, settings }); setStatus('ready');
+      const b = await api.bootstrap();
+      // Rasmlar keyin keladi; hozircha "undefined" — saqlashda rasmga tegilmasligi uchun
+      setData({ ...b, families: b.families.map((f) => ({ ...f, rasm: f.hasRasm ? undefined : '' })) });
+      setStatus('ready');
+      api.photos().then((ph) => setData((d) => ({
+        ...d, families: d.families.map((f) => (f.rasm === undefined && ph[f.id] ? { ...f, rasm: ph[f.id] } : f)),
+      }))).catch(() => {});
     } catch (e) { setLoadErr(e.message); setStatus('error'); }
+    clearTimeout(timer);
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -169,6 +177,12 @@ function Registry({ onLogout }) {
             </div>
           </div>
 
+          {status === 'loading' && slow && (
+            <div className="wake" role="status">
+              <span className="wake-dot" aria-hidden="true" />
+              <div><b>Server uyg‘onmoqda…</b><p className="muted">Bepul serverda uzoq vaqt kirilmasa, birinchi ochilish 30–60 soniya oladi. Sahifani yopmang.</p></div>
+            </div>
+          )}
           {status === 'loading' && <ul className="fams" aria-busy="true" aria-label="Yuklanmoqda">{Array.from({ length: 6 }, (_, i) => <li key={i} className="fam skel" />)}</ul>}
           {status === 'error' && (
             <div className="empty">

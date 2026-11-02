@@ -11,11 +11,12 @@ def member_out(m: models.Member) -> dict:
     }
 
 
-def family_out(f: models.Family) -> dict:
+def family_out(f: models.Family, with_photo: bool = True) -> dict:
     return {
         "id": f.id, "mahalla": f.mahalla, "toifa": f.toifa, "telefon": f.telefon, "manzil": f.manzil,
         "hujjatRaqami": f.hujjat_raqami, "reyestrSana": fmt_dmy(f.reyestr_sana), "savolnomaId": f.savolnoma_id,
-        "daromad": f.daromad or 0, "izoh": f.izoh, "rasm": f.rasm, "extra": f.extra or {},
+        "daromad": f.daromad or 0, "izoh": f.izoh, "rasm": f.rasm if with_photo else None,
+        "hasRasm": bool(f.rasm), "extra": f.extra or {},
         "azolar": [member_out(m) for m in f.azolar],
     }
 
@@ -46,5 +47,6 @@ def apply_family(f: models.Family, d: FamilyIn) -> None:
     f.savolnoma_id = d.savolnomaId
     f.daromad = d.daromad
     f.izoh = d.izoh
-    f.rasm = d.rasm
+    if d.rasm is not None:
+        f.rasm = d.rasm
     f.extra = d.extra

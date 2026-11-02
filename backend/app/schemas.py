@@ -73,12 +73,12 @@ class FamilyIn(BaseModel):
     savolnomaId: str = ""
     daromad: int = 0
     izoh: str = ""
-    rasm: str = ""
+    rasm: str | None = None  # None = rasmga tegilmaydi (ro'yxat rasmsiz yuklanganda kerak)
     extra: dict = {}
 
     @field_validator("rasm")
     @classmethod
-    def _rasm(cls, v: str) -> str:
+    def _rasm(cls, v: str | None) -> str | None:
         if v and (not v.startswith("data:image/") or len(v) > 1_500_000):
             raise ValueError("Rasm noto‘g‘ri yoki juda katta")
         return v
@@ -97,6 +97,7 @@ class FamilyCreate(FamilyIn):
 
 class FamilyOut(FamilyIn):
     id: int
+    hasRasm: bool = False
     azolar: list[MemberOut]
 
 

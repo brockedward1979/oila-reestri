@@ -491,3 +491,7 @@ dd{margin:0;font-weight:500;overflow-wrap:anywhere}
 .tools{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:0 6px 12px -10px rgba(10,20,30,.25)}
 .stats-sheet .lg-kicker{display:none}
 .tools.fp-open{z-index:60}
+.wake{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;padding:12px 14px;border-radius:12px;background:var(--hit)}
+.wake p{margin:2px 0 0;font-size:13.5px}
+.wake-dot{width:12px;height:12px;margin-top:5px;border-radius:50%;background:var(--k);animation:pulse 1s ease-in-out infinite alternate;flex:0 0 auto}
+@keyframes pulse{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1.15)}}

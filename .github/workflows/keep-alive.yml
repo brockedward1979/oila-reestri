@@ -1,0 +1,14 @@
+# Bepul Render API 15 daqiqa so'rov bo'lmasa uxlab qoladi. Bu ish ish vaqtida har 10 daqiqada uni "turtib" turadi.
+# Sozlash: GitHub repo -> Settings -> Secrets and variables -> Actions -> Variables -> New variable
+#   Name: API_URL   Value: https://oila-reestri-api.onrender.com
+name: Serverni uyg'oq saqlash
+on:
+  schedule:
+    - cron: "*/10 2-16 * * 1-6"   # UTC vaqti: Toshkent bo'yicha 07:00–21:59, dushanba–shanba
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: API'ga so'rov
+        run: curl -fsS --max-time 90 "${{ vars.API_URL }}/api/health" || true

@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+import hashlib
+import json
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -34,6 +38,37 @@ def _unique_jsh(db: Session, jsh: str, exclude_id: int | None = None) -> None:
     other = db.scalars(q).first()
     if other:
         raise HTTPException(409, f"Bu JSHSHIR allaqachon {other.fio} uchun kiritilgan")
+
+
+def etag_json(request: Request, payload) -> Response:
+    """Ma'lumot o'zgarmagan bo'lsa 304 qaytaradi: brauzer keshdagisini ishlatadi, internet trafigi tejaladi."""
+    body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str).encode()
+    tag = '"' + hashlib.md5(body).hexdigest() + '"'
+    headers = {"ETag": tag, "Cache-Control": "private, no-cache"}
+    if request.headers.get("if-none-match") == tag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=body, media_type="application/json", headers=headers)
+
+
+@router.get("/bootstrap")
+def bootstrap(request: Request, db: Session = Depends(get_db)):
+    """Sahifa ochilganda kerak bo'ladigan hamma narsa bitta so'rovda, rasmlarsiz (ular alohida keladi)."""
+    from .meta import cf_out, get_settings, preset_out  # aylanma importdan qochish uchun
+
+    fams = db.scalars(select(models.Family).options(selectinload(models.Family.azolar)).order_by(models.Family.id)).all()
+    return etag_json(request, {
+        "families": [family_out(f, with_photo=False) for f in fams],
+        "customFields": [cf_out(c) for c in db.scalars(select(models.CustomField).order_by(models.CustomField.id))],
+        "presets": [preset_out(p) for p in db.scalars(select(models.ExportPreset).order_by(models.ExportPreset.id))],
+        "settings": get_settings(db),
+    })
+
+
+@router.get("/photos")
+def photos(request: Request, db: Session = Depends(get_db)):
+    """Barcha arizachi rasmlari {oila_id: rasm}. Ro'yxat chiqqandan keyin fon rejimida yuklanadi."""
+    rows = db.execute(select(models.Family.id, models.Family.rasm).where(models.Family.rasm != "")).all()
+    return etag_json(request, {str(i): r for i, r in rows})
 
 
 @router.get("/families", response_model=list[FamilyOut])

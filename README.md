@@ -137,3 +137,18 @@ Shu yo‘l bilan keyinchalik yuklab olingan har qanday zaxira nusxani ham tiklas
 - **Zaxira:** Sozlamalar → Zaxirani yuklab olish. Haftasiga bir marta olib qo‘yish tavsiya etiladi. Neon’ning o‘zida ham 24 soatlik tiklash nuqtalari bor.
 - **JSHSHIR takrorlanmaydi:** bir xil JSHSHIR’ni ikkinchi marta kiritib bo‘lmaydi, server rad etadi.
 - **Bazaning tuzilishi** hozircha `create_all` bilan yaratiladi. Keyinchalik jadvallarga ustun qo‘shish kerak bo‘lsa, Alembic migratsiyalarini ulash kerak bo‘ladi. Foydalanuvchi qo‘shadigan qo‘shimcha ustunlar esa `extra` maydonida saqlanadi va migratsiya talab qilmaydi.
+
+## Tezlik: birinchi ochilish sekin bo‘lsa
+
+Asosiy sabab: bepul Render API’si 15 daqiqa so‘rov bo‘lmasa uxlaydi va uyg‘onishi 30–60 soniya oladi. Kod tomonida quyidagilar qilingan:
+
+- sahifa ochilganda bitta yengil so‘rov (`/api/bootstrap`, rasmlarsiz, ~10 KB) yuboriladi, rasmlar ro‘yxat chiqqandan keyin alohida keladi;
+- ma’lumot o‘zgarmagan bo‘lsa server `304` qaytaradi va brauzer keshdagisini ishlatadi;
+- login sahifasi ochilishi bilan server oldindan uyg‘otiladi, uzilgan so‘rov avtomatik qayta yuboriladi.
+
+Serverni umuman uxlatmaslik uchun ikkita yo‘l bor (bittasi yetarli):
+
+1. **cron-job.org** (tavsiya etiladi): ro‘yxatdan o‘ting, **Create cronjob** → URL: `https://API-MANZIL/api/health`, **Every 10 minutes** → saqlang.
+2. **GitHub Actions**: repoda `.github/workflows/keep-alive.yml` bor. Repo → **Settings → Secrets and variables → Actions → Variables** bo‘limida `API_URL` o‘zgaruvchisini API manzili bilan yarating. GitHub jadvalni ba’zan 5–15 daqiqa kechiktiradi.
+
+Render bepul tarifida oyiga 750 soat beriladi, bitta doim yoqiq API uchun bu yetadi. Butunlay kafolatli tezlik kerak bo‘lsa, API xizmatini **Starter** tarifiga o‘tkazish mumkin.

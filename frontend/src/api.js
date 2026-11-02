@@ -22,7 +22,10 @@ function detailText(detail) {
   return JSON.stringify(detail);
 }
 
-async function request(method, path, body) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* Bepul Render serveri uyg'onayotganda so'rov uzilib qolishi mumkin: o'qish so'rovlarini 3 martagacha qayta yuboramiz. */
+async function request(method, path, body, attempt = 0) {
   let res;
   try {
     res = await fetch(BASE + path, {
@@ -31,8 +34,10 @@ async function request(method, path, body) {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
+    if (method === 'GET' && attempt < 3) { await sleep(4000); return request(method, path, body, attempt + 1); }
     throw new ApiError('Server bilan aloqa yo‘q. Internetni tekshiring yoki birozdan keyin urinib ko‘ring.', 0);
   }
+  if ([502, 503, 504].includes(res.status) && method === 'GET' && attempt < 3) { await sleep(4000); return request(method, path, body, attempt + 1); }
   if (res.status === 401 && path !== '/api/auth/login') { auth.clear(); onUnauthorized(); }
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
@@ -40,9 +45,14 @@ async function request(method, path, body) {
   return data;
 }
 
+/** Serverni oldindan uyg'otish (login sahifasi ochilishi bilan). */
+export const wakeServer = () => fetch(BASE + '/api/health').catch(() => {});
+
 export const api = {
   login: (username, password) => request('POST', '/api/auth/login', { username, password }),
   families: () => request('GET', '/api/families'),
+  bootstrap: () => request('GET', '/api/bootstrap'),
+  photos: () => request('GET', '/api/photos'),
   createFamily: (f) => request('POST', '/api/families', f),
   updateFamily: (id, f) => request('PUT', `/api/families/${id}`, f),
   deleteFamily: (id) => request('DELETE', `/api/families/${id}`),
