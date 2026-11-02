@@ -215,27 +215,58 @@ export async function famXLSX(f, customFields) {
   await saveWorkbook(wb, docName(f, 'xlsx'));
 }
 
-/** "Jadvalni sozlash" oynasidagi tanlangan ustunlar bo'yicha xlsx yaratadi. Qatorlar sonini qaytaradi. */
-export async function runCustomExport({ families, cfg, cols, customFields, onlyStat, subtitle }) {
+/** Tanlangan ustunlar bo'yicha jadval qatorlarini tayyorlaydi (Excel va PDF uchun umumiy). */
+export function buildExportRows({ families, cfg, cols, customFields, onlyStat }) {
   const byId = Object.fromEntries(fieldCatalog(customFields).map((c) => [c.id, c]));
+  const okCols = cols.filter((c) => byId[c] && !(cfg.mode === 'oila' && byId[c].scope === 'azo'));
   const rows = [];
   const toifaOf = [];
   let ri = 0;
   families.forEach((f, fi) => {
-    const push = (cx) => { rows.push(cols.map((c) => byId[c].get(cx, cfg) ?? '')); toifaOf.push(f.toifa); };
+    const push = (cx) => { rows.push(okCols.map((c) => byId[c].get(cx, cfg) ?? '')); toifaOf.push(f.toifa); };
     if (cfg.mode === 'oila') push({ f, fi, ri: ri++ });
     else f.azolar.forEach((m) => { if (!(onlyStat?.mem && !memberHit(onlyStat, m))) push({ f, m, fi, ri: ri++ }); });
   });
-  const toifaCol = cols.indexOf('toifa');
+  return { header: okCols.map((c) => byId[c].label), rows, toifaOf, toifaCol: okCols.indexOf('toifa') };
+}
+
+/** Excel: sarlavha, izoh qatori, formatlangan jadval. Qatorlar sonini qaytaradi. */
+export async function runCustomExport({ families, cfg, cols, customFields, onlyStat, subtitle }) {
+  const t = buildExportRows({ families, cfg, cols, customFields, onlyStat });
   const name = cfg.name || 'Jadval';
   const wb = await newWorkbook();
   const ws = wb.addWorksheet(sheetName(name));
-  const start = addTitle(ws, 1, name, cols.length, subtitle) + 1;
+  const start = addTitle(ws, 1, name, t.header.length, subtitle) + 1;
   ws.views = [{ state: 'frozen', ySplit: start }];
   addTable(ws, {
-    header: cols.map((c) => byId[c].label), rows, startRow: start,
-    styleCell: (r, ci) => (ci === toifaCol ? TOIFA_STYLE[toifaOf[r]] : null),
+    header: t.header, rows: t.rows, startRow: start,
+    styleCell: (r, ci) => (ci === t.toifaCol ? TOIFA_STYLE[t.toifaOf[r]] : null),
   });
   await saveWorkbook(wb, `${fileSafe(name)}_${today()}.xlsx`);
-  return rows.length;
+  return t.rows.length;
+}
+
+const PDF_TOIFA = { kambagal: ['#FBEFD3', '#8A5A00'], chegara: ['#DCF1E5', '#17734A'], davlat: ['#FBE4E1', '#B3261E'] };
+
+/** PDF: Excel bilan bir xil ko'rinishdagi jadval (rangli sarlavha, chegaralar, toifa ranglari). */
+export async function runCustomPDF({ families, cfg, cols, customFields, onlyStat, subtitle }) {
+  const t = buildExportRows({ families, cfg, cols, customFields, onlyStat });
+  const name = cfg.name || 'Jadval';
+  const cell = (v) => esc(v instanceof Date ? fmt(v) : v);
+  const html = `<div class="ptable">
+    <h1>${esc(name)}</h1>${subtitle ? `<p>${esc(subtitle)}</p>` : ''}
+    <table><thead><tr>${t.header.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+    <tbody>${t.rows.map((r, ri) => `<tr>${r.map((v, ci) => {
+      const tone = ci === t.toifaCol ? PDF_TOIFA[t.toifaOf[ri]] : null;
+      const num = typeof v === 'number' || v instanceof Date;
+      return `<td${tone ? ` style="background:${tone[0]};color:${tone[1]};font-weight:700"` : ''}${num ? ' class="c"' : ''}>${cell(v)}</td>`;
+    }).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const html2pdf = (await import('html2pdf.js')).default;
+  await html2pdf().set({
+    margin: [8, 8, 10, 8], filename: `${fileSafe(name)}_${today()}.pdf`, image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, backgroundColor: '#ffffff' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: t.header.length > 6 ? 'landscape' : 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] },
+  }).from(`<div style="background:#fff">${html}</div>`, 'string').save();
+  return t.rows.length;
 }

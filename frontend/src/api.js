@@ -4,7 +4,8 @@ const TOKEN_KEY = 'oila-reestri-token';
 
 export const auth = {
   get token() { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } },
-  set(token) { try { localStorage.setItem(TOKEN_KEY, token); } catch { /* xotira yopiq */ } },
+  get user() { try { return localStorage.getItem(TOKEN_KEY + '-user') || ''; } catch { return ''; } },
+  set(token, user) { try { localStorage.setItem(TOKEN_KEY, token); if (user) localStorage.setItem(TOKEN_KEY + '-user', user); } catch { /* xotira yopiq */ } },
   clear() { try { localStorage.removeItem(TOKEN_KEY); } catch { /* xotira yopiq */ } },
 };
 

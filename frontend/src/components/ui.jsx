@@ -9,7 +9,11 @@ const P = {
   crown: 'M4 18h16L18 8l-4 4-2-6-2 6-4-4z', camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   out: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10', refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
   cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', filter: 'M4 5h16l-6 7v6l-4 2v-8z', chart: 'M5 20V10M12 20V4M19 20v-7',
-  left: 'M15 6l-6 6 6 6', right: 'M9 6l6 6-6 6', doc: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',
+  left: 'M15 6l-6 6 6 6',
+  home: 'M3 11l9-8 9 8M5 9.5V20h5v-6h4v6h5V9.5', users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c0-4 3-6 7-6s7 2 7 6M16 3.5a4 4 0 0 1 0 7.5M22 21c0-3-1.8-5-4.5-5.7',
+  star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z', brief: 'M4 8h16v11H4zM9 8V5h6v3M4 13h16',
+  sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+  moon: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z', menu: 'M4 7h16M4 12h16M4 17h16', table: 'M4 5h16v14H4zM4 10h16M10 10v9', right: 'M9 6l6 6-6 6', doc: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',
 };
 export const Icon = ({ n, s = 18 }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={P[n]} /></svg>

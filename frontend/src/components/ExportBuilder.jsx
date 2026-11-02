@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { STAT_BY_KEY } from '../lib/helpers.js';
-import { fieldCatalog, runCustomExport } from '../lib/exporters.js';
+import { fieldCatalog, runCustomExport, runCustomPDF } from '../lib/exporters.js';
 import { Confirm, Field, FormError, Icon, Modal, Prompt } from './ui.jsx';
 import { fmt } from '../lib/helpers.js';
 
@@ -33,7 +33,7 @@ export default function ExportBuilder({ data, setData, visible, statKey, selecti
   };
   const savePreset = async (asNew) => {
     if (asNew || !cfg.id) { setDialog({ t: 'prompt', initial: cfg.id ? cfg.name + ' (nusxa)' : cfg.name }); return; }
-    setBusy(true); setErr('');
+    setBusy('save'); setErr('');
     try { await persist(cfg.name, false); } catch (e) { setErr(e.message); }
     setBusy(false);
   };
@@ -46,25 +46,27 @@ export default function ExportBuilder({ data, setData, visible, statKey, selecti
       setCfg({ ...(rest[0] || FALLBACK) }); setPresetId(rest[0]?.id ?? null); toast('Shablon o‘chirildi');
     },
   });
-  const run = async () => {
-    setBusy(true); setErr('');
+  const run = async (kind) => {
+    setBusy(kind); setErr('');
     try {
       const fams = scope === 'visible' ? visible : data.families;
-      const n = await runCustomExport({
+      const fn = kind === 'pdf' ? runCustomPDF : runCustomExport;
+      const n = await fn({
         families: fams, cfg, cols, customFields: data.customFields, onlyStat: onlyHits ? STAT_BY_KEY[statKey] : null,
         subtitle: `${scope === 'visible' ? selection : 'Barcha oilalar'}. ${fams.length} oila. Tayyorlangan sana: ${fmt(new Date())}`,
       });
-      toast(`${n} qatorli jadval yuklab olindi`);
-    } catch (e) { setErr('Excel faylni tayyorlab bo‘lmadi: ' + e.message); }
+      toast(`${n} qatorli ${kind === 'pdf' ? 'PDF' : 'Excel'} jadval yuklab olindi`);
+    } catch (e) { setErr('Faylni tayyorlab bo‘lmadi: ' + e.message); }
     setBusy(false);
   };
 
   return (
     <Modal title="Jadvalni sozlash va yuklab olish" onClose={onClose} wide
       footer={<>
-        <button className="btn ghost" disabled={busy} onClick={() => savePreset(true)}>Yangi shablon</button>
-        <button className="btn ghost" disabled={busy} onClick={() => savePreset(false)}>Shablonni saqlash</button>
-        <button className="btn" disabled={!cols.length || busy} onClick={run}><Icon n="down" s={16} /> {busy ? 'Tayyorlanmoqda…' : 'Excel yuklab olish'}</button>
+        <button className="btn ghost" disabled={!!busy} onClick={() => savePreset(true)}>Yangi shablon</button>
+        <button className="btn ghost" disabled={!!busy} onClick={() => savePreset(false)}>Shablonni saqlash</button>
+        <button className="btn fmt-pdf" disabled={!cols.length || !!busy} onClick={() => run('pdf')}><Icon n="down" s={16} /> {busy === 'pdf' ? 'Tayyorlanmoqda…' : 'PDF'}</button>
+        <button className="btn fmt-xls" disabled={!cols.length || !!busy} onClick={() => run('xlsx')}><Icon n="down" s={16} /> {busy === 'xlsx' ? 'Tayyorlanmoqda…' : 'Excel'}</button>
       </>}>
       <div className="grid">
         <Field label="Shablon">

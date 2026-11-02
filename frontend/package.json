@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/nunito": "^5.1.0",
     "buffer": "6.0.3",
     "docx": "8.5.0",
     "exceljs": "^4.4.0",

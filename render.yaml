@@ -36,6 +36,13 @@ services:
         source: /*
         destination: /index.html
     headers:
+      # Vite fayl nomiga xesh qo'shadi, shuning uchun /assets/ ni bir yilga keshlash xavfsiz
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
       - path: /*
         name: X-Frame-Options
         value: DENY

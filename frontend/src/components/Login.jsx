@@ -10,7 +10,7 @@ export default function Login({ onLogin }) {
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true); setErr('');
-    try { const r = await api.login(u.trim(), p); auth.set(r.token); onLogin(r.username); } catch (x) { setErr(x.message); setBusy(false); }
+    try { const r = await api.login(u.trim(), p); auth.set(r.token, r.username); onLogin(r.username); } catch (x) { setErr(x.message); setBusy(false); }
   };
   return (
     <main className="login">
