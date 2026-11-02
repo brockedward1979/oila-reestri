@@ -196,7 +196,7 @@ function Registry({ onLogout }) {
             <h1>Oila reestri</h1>
           </div>
           <label className="search"><Icon n="search" s={17} />
-            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism, JSHSHIR yoki telefon…" aria-label="Qidirish" />
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism, JSHSHIR yoki telefon bo‘yicha qidirish" aria-label="Qidirish" />
             {q && <button className="icon-btn" aria-label="Qidiruvni tozalash" onClick={() => setQ('')}><Icon n="x" s={16} /></button>}
           </label>
           <button className="round-btn" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Kunduzgi rejim' : 'Tungi rejim'} title={theme === 'dark' ? 'Kunduzgi rejim' : 'Tungi rejim'}>
@@ -296,7 +296,11 @@ function Registry({ onLogout }) {
                 <button className="btn" onClick={load}><Icon n="refresh" s={16} /> Qayta urinish</button>
               </div>
             )}
-            {status === 'ready' && (<>
+            {status === 'ready' && (<div className="tcard">
+              <div className="tcard-h">
+                <h2>Oilalar ro‘yxati</h2>
+                <span className="muted"><b className="num">{visible.length}</b> oila</span>
+              </div>
               <div className="thead" aria-hidden="true">
                 <span className="c-no">№</span><span /><span className="c-name">Oila boshlig‘i</span><span className="c-toifa">Toifa</span>
                 <span className="c-n">A’zolar</span><span className="c-k">Bolalar</span><span className="c-tel">Telefon</span><span className="c-reg">Reyestrga kirgan</span><span />
@@ -314,7 +318,7 @@ function Registry({ onLogout }) {
                     : <><p>Reestr hozircha bo‘sh.</p><p className="muted">Oila qo‘shing yoki Sozlamalar orqali zaxira fayldan ma’lumot yuklang.</p><button className="btn" onClick={newFamily}><Icon n="plus" s={16} /> Oila qo‘shish</button></>}
                 </div>
               )}
-            </>)}
+            </div>)}
           </main>
           {status === 'ready' && <aside className="side" ref={sideRef} aria-label="Jami ko‘rsatkichlar">{ledger}</aside>}
         </div>
