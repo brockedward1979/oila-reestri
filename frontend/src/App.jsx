@@ -125,6 +125,8 @@ function Registry({ onLogout }) {
   };
   const clearFilters = () => { setQ(''); setFlt(emptyFilters()); setStatKey(''); };
   const removeFilter = (k) => { const g = FILTER_OPT[k].group; setFlt((f) => ({ ...f, [g]: f[g].filter((x) => x !== k) })); };
+  // Toifa tablari bitta tanlov: faol tabni qayta bossangiz "Barchasi"ga qaytadi
+  const pickToifa = (k) => setFlt((f) => ({ ...f, toifa: !k || (f.toifa.length === 1 && f.toifa[0] === k) ? [] : [k] }));
   const toggleToifa = (k) => setFlt((f) => ({ ...f, toifa: k ? (f.toifa.includes(k) ? f.toifa.filter((x) => x !== k) : [...f.toifa, k]) : [] }));
   const ledger = <Ledger fams={base} statKey={statKey} onPick={pickStat} selection={selection} />;
 
@@ -233,52 +235,58 @@ function Registry({ onLogout }) {
             )}
 
             <div className={'tools' + (fpOpen || quickOpen ? ' fp-open' : '')} ref={listRef}>
-              <div className="tools-row">
-                <div className="chips" role="group" aria-label="Oila toifasi">
-                  <button className={'fchip' + (!flt.toifa.length ? ' on' : '')} aria-pressed={!flt.toifa.length} onClick={() => toggleToifa('')}>
-                    Barchasi <span className="num">{fams.length}</span>
-                  </button>
-                  {Object.entries(TOIFA).map(([k, v]) => (
-                    <button key={k} className={'fchip t-' + k + (flt.toifa.includes(k) ? ' on' : '')} aria-pressed={flt.toifa.includes(k)} onClick={() => toggleToifa(k)}>
-                      {flt.toifa.includes(k) && <span aria-hidden="true">✓</span>}{v.short} <span className="num">{fams.filter((f) => f.toifa === k).length}</span>
+              <div className="tbar">
+                <div className="tbar-top">
+                  <div className="ttabs" role="tablist" aria-label="Oila toifasi">
+                    {[['', 'Barchasi', 'Barchasi', fams.length], ...Object.entries(TOIFA).map(([k, v]) => [k, v.short, { kambagal: 'Kambag‘al', chegara: 'Chegara', davlat: 'Davlat' }[k], fams.filter((f) => f.toifa === k).length])].map(([k, full, short, n]) => {
+                      const on = k ? flt.toifa.includes(k) : !flt.toifa.length;
+                      return (
+                        <button key={k || 'all'} role="tab" aria-selected={on} className={'ttab' + (k ? ' t-' + k : ' t-all') + (on ? ' on' : '')} onClick={() => pickToifa(k)}>
+                          <i className="tdot" aria-hidden="true" />
+                          <span className="tl-full">{full}</span><span className="tl-short">{short}</span>
+                          <span className="tnum num">{n}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="tbar-act">
+                    <div className="fp-wrap">
+                      <button className={'tbtn' + (activeKeys.filter((k) => FILTER_OPT[k].group !== 'toifa').length ? ' active' : '')} aria-expanded={fpOpen} onClick={() => setFpOpen(!fpOpen)}>
+                        <Icon n="filter" s={16} /><span>Filtr</span>
+                        {activeKeys.length > 0 && <span className="badge num">{activeKeys.length}</span>}
+                      </button>
+                      {fpOpen && <FilterPanel fams={searched} flt={flt} setFlt={setFlt} sort={sort} setSort={setSort} resultCount={base.length} onClose={() => setFpOpen(false)} />}
+                    </div>
+                    <div className="fp-wrap">
+                      <button className="tbtn" aria-expanded={quickOpen} disabled={status !== 'ready'} onClick={() => setQuickOpen(!quickOpen)}>
+                        <Icon n="down" s={16} /><span>Yuklab olish</span>
+                      </button>
+                      {quickOpen && (
+                        <>
+                          <div className="fp-ov" onMouseDown={() => setQuickOpen(false)} />
+                          <div className="menu" role="menu">
+                            <p className="menu-h">Ekrandagi {visible.length} ta oila</p>
+                            <button role="menuitem" onClick={() => quickExport('xlsx')}><span className="mi mi-x">X</span><span><b>Excel</b><small>Formatlangan jadval</small></span></button>
+                            <button role="menuitem" onClick={() => quickExport('pdf')}><span className="mi mi-p">P</span><span><b>PDF</b><small>Chop etishga tayyor</small></span></button>
+                            <button role="menuitem" onClick={() => { setQuickOpen(false); setModal({ t: 'export' }); }}><span className="mi"><Icon n="cols" s={16} /></span><span><b>Ustunlarni tanlash…</b><small>Shablon bo‘yicha sozlash</small></span></button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="tbar-sub" aria-live="polite">
+                  <span className="sel-count"><b className="num">{visible.length}</b> oila, <b className="num">{visibleMembers}</b> kishi</span>
+                  {!anyActive && <span className="sel-all">Barcha oilalar ko‘rsatilmoqda</span>}
+                  {q.trim() && <button className="subchip" onClick={() => setQ('')}>“{q.trim()}” <Icon n="x" s={12} /></button>}
+                  {activeKeys.filter((k) => !(FILTER_OPT[k].group === 'toifa' && flt.toifa.length === 1)).map((k) => (
+                    <button key={k} className={'subchip' + (FILTER_OPT[k].tone ? ' tone-' + FILTER_OPT[k].tone : '')} onClick={() => removeFilter(k)} aria-label={`${FILTER_OPT[k].label} filtrini olib tashlash`}>
+                      {FILTER_OPT[k].label}{FILTER_OPT[k].hint ? ` (${FILTER_OPT[k].hint})` : ''} <Icon n="x" s={12} />
                     </button>
                   ))}
+                  {stat && <button className="subchip on" onClick={() => setStatKey('')} aria-label="Ko‘rsatkich filtrini olib tashlash">{stat.label} <Icon n="x" s={12} /></button>}
+                  {anyActive && <button className="sel-clear" onClick={clearFilters}>Hammasini tozalash</button>}
                 </div>
-                <div className="fp-wrap">
-                  <button className={'btn soft fp-btn' + (activeKeys.length ? ' active' : '')} aria-expanded={fpOpen} onClick={() => setFpOpen(!fpOpen)}>
-                    <Icon n="filter" s={16} /><span className="fp-btn-t">Filtr</span>
-                    {activeKeys.length > 0 && <span className="badge num">{activeKeys.length}</span>}
-                  </button>
-                  {fpOpen && <FilterPanel fams={searched} flt={flt} setFlt={setFlt} sort={sort} setSort={setSort} resultCount={base.length} onClose={() => setFpOpen(false)} />}
-                </div>
-                <div className="fp-wrap">
-                  <button className="btn soft fp-btn" aria-expanded={quickOpen} disabled={status !== 'ready'} onClick={() => setQuickOpen(!quickOpen)}>
-                    <Icon n="down" s={16} /><span className="fp-btn-t">Yuklab olish</span>
-                  </button>
-                  {quickOpen && (
-                    <>
-                      <div className="fp-ov" onMouseDown={() => setQuickOpen(false)} />
-                      <div className="menu" role="menu">
-                        <p className="menu-h">Ekrandagi {visible.length} ta oila</p>
-                        <button role="menuitem" onClick={() => quickExport('xlsx')}><span className="mi mi-x">X</span><span><b>Excel</b><small>Formatlangan jadval</small></span></button>
-                        <button role="menuitem" onClick={() => quickExport('pdf')}><span className="mi mi-p">P</span><span><b>PDF</b><small>Chop etishga tayyor</small></span></button>
-                        <button role="menuitem" onClick={() => { setQuickOpen(false); setModal({ t: 'export' }); }}><span className="mi"><Icon n="cols" s={16} /></span><span><b>Ustunlarni tanlash…</b><small>Shablon bo‘yicha sozlash</small></span></button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className={'selbar' + (anyActive ? ' active' : '')} aria-live="polite">
-                <span className="sel-count"><b className="num">{visible.length}</b> oila, <b className="num">{visibleMembers}</b> kishi</span>
-                {!anyActive && <span className="sel-all">Barcha oilalar ko‘rsatilmoqda</span>}
-                {q.trim() && <button className="selchip" onClick={() => setQ('')}>“{q.trim()}” <Icon n="x" s={12} /></button>}
-                {activeKeys.map((k) => (
-                  <button key={k} className={'selchip' + (FILTER_OPT[k].tone ? ' tone-' + FILTER_OPT[k].tone : '')} onClick={() => removeFilter(k)} aria-label={`${FILTER_OPT[k].label} filtrini olib tashlash`}>
-                    {FILTER_OPT[k].label}{FILTER_OPT[k].hint ? ` (${FILTER_OPT[k].hint})` : ''} <Icon n="x" s={12} />
-                  </button>
-                ))}
-                {stat && <button className="selchip stat" onClick={() => setStatKey('')} aria-label="Ko‘rsatkich filtrini olib tashlash">{stat.label} <Icon n="x" s={12} /></button>}
-                {anyActive && <button className="sel-clear" onClick={clearFilters}>Hammasini tozalash</button>}
               </div>
             </div>
 

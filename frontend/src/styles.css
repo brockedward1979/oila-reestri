@@ -608,3 +608,66 @@ h1,h2,h3,h4{font-weight:800;letter-spacing:-.01em}
   .tcard{padding:14px 6px 6px;border-radius:24px}
   .lg-title{font-size:18px}
 }
+
+/* ═════════ Toifa tablari: faol tab pastdagi filtr paneliga "oqib" tushadi ═════════ */
+.tbar{--pad:22px;--ov:12px;--cr:18px;position:relative}
+.tbar-top{display:flex;align-items:flex-end;gap:10px;padding:10px 12px var(--pad) calc(12px + var(--cr));border-radius:28px;
+  background:linear-gradient(180deg,var(--nav-1),var(--nav-2));box-shadow:0 16px 30px -18px rgba(80,60,180,.7),inset 0 2px 0 rgba(255,255,255,.3)}
+.ttabs{flex:1;min-width:0;display:flex;align-items:flex-end;gap:4px;margin-right:var(--cr)}
+.ttab{position:relative;flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 14px;border:0;border-radius:18px;
+  background:transparent;color:#fff;font-weight:800;font-size:15px;cursor:pointer;white-space:nowrap;transition:background .15s}
+.ttab:hover{background:rgba(255,255,255,.14)}
+.tl-short{display:none}
+.tdot{display:none;width:8px;height:8px;border-radius:50%;background:var(--primary);flex:0 0 auto}
+.tnum{padding:1px 9px;border-radius:99px;background:rgba(255,255,255,.22);font-size:13px}
+.ttab.on{z-index:3;background:var(--surface);color:var(--primary-2);border-radius:18px 18px 0 0;margin-bottom:calc(-1 * var(--pad));padding-bottom:var(--pad);min-height:calc(50px + var(--pad))}
+.ttab.on:hover{background:var(--surface)}
+.ttab.on .tdot{display:block}
+.ttab.on::before,.ttab.on::after{content:"";position:absolute;bottom:var(--ov);width:var(--cr);height:var(--cr);pointer-events:none}
+.ttab.on::before{left:calc(-1 * var(--cr));background:radial-gradient(circle at 0 0,transparent calc(var(--cr) - .5px),var(--surface) var(--cr))}
+.ttab.on::after{right:calc(-1 * var(--cr));background:radial-gradient(circle at 100% 0,transparent calc(var(--cr) - .5px),var(--surface) var(--cr))}
+.ttab.on .tnum{background:var(--lav);color:var(--primary-2)}
+.ttab.t-kambagal.on{color:var(--k)}.ttab.t-kambagal.on .tdot{background:#F0AE33}.ttab.t-kambagal.on .tnum{background:var(--k-bg);color:var(--k)}
+.ttab.t-chegara.on{color:var(--c)}.ttab.t-chegara.on .tdot{background:#43AE72}.ttab.t-chegara.on .tnum{background:var(--c-bg);color:var(--c)}
+.ttab.t-davlat.on{color:var(--d)}.ttab.t-davlat.on .tdot{background:#E8667B}.ttab.t-davlat.on .tnum{background:var(--d-bg);color:var(--d)}
+[data-theme="dark"] .ttab.on{color:var(--ink)}
+
+.tbar-act{display:flex;gap:8px;align-self:center;margin-bottom:calc(var(--ov) - var(--pad) + 4px)}
+.tbar-act .fp-wrap{flex:0 0 auto}
+.tbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 16px;border:0;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-weight:800;cursor:pointer;white-space:nowrap}
+.tbtn:hover{background:rgba(255,255,255,.28)}
+.tbtn.active{background:#fff;color:var(--primary-2)}
+.tbtn:disabled{opacity:.5;cursor:not-allowed}
+.tbtn .badge{background:#fff;color:var(--primary-2)}
+.tbtn.active .badge{background:var(--primary);color:#fff}
+
+.tbar-sub{position:relative;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:calc(-1 * var(--ov)) 12px 0;min-height:52px;padding:9px 16px;
+  border-radius:22px;background:var(--surface);box-shadow:0 14px 26px -16px rgba(80,60,180,.55);font-size:13.5px}
+.subchip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:2px 14px;border:0;border-radius:999px;background:var(--surface-2);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+.subchip:hover{filter:brightness(.97)}
+.subchip svg{opacity:.6}
+.subchip.tone-k{background:var(--k-bg);color:var(--k)}.subchip.tone-c{background:var(--c-bg);color:var(--c)}.subchip.tone-d{background:var(--d-bg);color:var(--d)}
+.subchip.on{background:linear-gradient(180deg,var(--primary),var(--primary-2));color:var(--on-primary)}
+.subchip.on svg{opacity:.85}
+
+/* telefon: tablar bir qatorda (qisqa nom + son), tugmalar pastda */
+@media (max-width:719px){
+  .tbar{--pad:16px;--ov:10px;--cr:14px;display:flex;flex-direction:column}
+  .tbar-top{display:contents}
+  .ttabs{order:1;margin:0;gap:2px;padding:8px 8px var(--pad) 8px;border-radius:24px;background:linear-gradient(180deg,var(--nav-1),var(--nav-2));box-shadow:0 14px 26px -16px rgba(80,60,180,.7)}
+  .ttab{flex-direction:column;gap:2px;min-height:58px;padding:6px 2px;font-size:13px;border-radius:16px}
+  .ttab.on{min-height:calc(58px + var(--pad));border-radius:16px 16px 0 0}
+  .ttab.on .tdot{display:none}
+  .tl-full{display:none}.tl-short{display:inline}
+  .tnum{font-size:12px;padding:0 8px}
+  .ttab:first-child.on::before{display:none}
+  .ttab:last-child.on::after{display:none}
+  .ttab:first-child.on{border-top-left-radius:16px}
+  .tbar-sub{order:2;margin:calc(-1 * var(--ov)) 8px 0}
+  .tbar-act{order:3;margin:12px 0 0;align-self:stretch}
+  .tbar-act .fp-wrap{flex:1 1 0}
+  .tbtn{width:100%;background:var(--surface);color:var(--primary-2);box-shadow:var(--clay-sm)}
+  .tbtn .badge{background:var(--primary);color:#fff}
+  .subchip{white-space:normal;text-align:left}
+}
+[data-theme="dark"] .tbtn.active{color:#2C2557}
