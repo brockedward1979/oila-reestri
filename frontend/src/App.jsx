@@ -15,7 +15,7 @@ const Settings = lazy(() => import('./components/Settings.jsx'));
 import FamilyItem from './components/FamilyItem.jsx';
 import Login from './components/Login.jsx';
 import Ledger from './components/Ledger.jsx';
-import FilterPanel from './components/FilterPanel.jsx';
+import FilterPanel, { asSheet } from './components/FilterPanel.jsx';
 
 const EMPTY = { families: [], customFields: [], presets: [], settings: DEFAULT_SETTINGS };
 
@@ -40,6 +40,21 @@ function Registry({ onLogout }) {
   const [theme, setThemeState] = useState(getTheme);
   const toggleTheme = () => { const t = theme === 'dark' ? 'light' : 'dark'; setTheme(t); setThemeState(t); };
   const sideRef = useRef();
+  // Banner va ko'rsatkich kartalari tepaga chiqib ketganda ixcham panelga "yig'iladi"
+  const dashRef = useRef();
+  const [dashHidden, setDashHidden] = useState(false);
+  const [dashOpen, setDashOpen] = useState(false);
+  useEffect(() => {
+    const el = dashRef.current;
+    if (!el) return undefined;
+    const io = new IntersectionObserver(([e]) => {
+      const gone = !e.isIntersecting && e.boundingClientRect.top < 0;
+      setDashHidden(gone);
+      if (!gone) setDashOpen(false);
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [status]);
   const [sort, setSort] = useState('name');
   const [statKey, setStatKey] = useState('');
   const [openId, setOpenId] = useState(null);
@@ -157,12 +172,25 @@ function Registry({ onLogout }) {
   const kpi = useMemo(() => {
     const c = (k) => countStat(STAT_BY_KEY[k], base);
     return [
-      { k: 'oila', tone: 'lav', icon: 'home', label: 'Oilalar', v: c('oila'), sub: `${c('kambagal')} kambag‘al, ${c('chegara')} chegarada, ${c('davlat')} ta’minotda` },
-      { k: 'azo', tone: 'pink', icon: 'users', label: 'Oila a’zolari', v: c('azo'), sub: `${c('ayol')} ayol, ${c('erkak')} erkak` },
-      { k: 'u18', tone: 'sun', icon: 'star', label: '18 yoshgacha bolalar', v: c('u18'), sub: `${c('maktab')} nafari maktab o‘quvchisi` },
-      { k: 'ishsiz', tone: 'sky', icon: 'brief', label: 'Ishsizlar', v: c('ishsiz'), sub: `${c('band')} kishi ish bilan band` },
+      { k: 'oila', tone: 'lav', icon: 'home', short: 'oila', label: 'Oilalar', v: c('oila'), sub: `${c('kambagal')} kambag‘al, ${c('chegara')} chegarada, ${c('davlat')} ta’minotda` },
+      { k: 'azo', tone: 'pink', icon: 'users', short: 'kishi', label: 'Oila a’zolari', v: c('azo'), sub: `${c('ayol')} ayol, ${c('erkak')} erkak` },
+      { k: 'u18', tone: 'sun', icon: 'star', short: 'bola', label: '18 yoshgacha bolalar', v: c('u18'), sub: `${c('maktab')} nafari maktab o‘quvchisi` },
+      { k: 'ishsiz', tone: 'sky', icon: 'brief', short: 'ishsiz', label: 'Ishsizlar', v: c('ishsiz'), sub: `${c('band')} kishi ish bilan band` },
     ];
   }, [base]);
+
+  const renderKpis = () => (
+    <section className="kpis" aria-label="Asosiy ko‘rsatkichlar">
+      {kpi.map((k) => (
+        <button key={k.k} className={'kpi kpi-' + k.tone + (statKey === k.k ? ' on' : '')} onClick={() => pickStat(k.k)} aria-pressed={statKey === k.k}>
+          <span className="kpi-ic" aria-hidden="true"><Icon n={k.icon} s={20} /></span>
+          <span className="kpi-l">{k.label}</span>
+          <b className="kpi-v num">{k.v}</b>
+          <span className="kpi-s">{k.sub}</span>
+        </button>
+      ))}
+    </section>
+  );
 
   return (
     <div className={'shell' + (status === 'ready' ? ' has-dock' : '')}>
@@ -208,7 +236,37 @@ function Registry({ onLogout }) {
         </header>
 
         <div className="layout">
-          <main className="main">
+          <main className={'main' + (dashHidden ? ' dash-min' : '')}>
+            {status === 'ready' && (
+              <div className={'mini-dock' + (dashHidden ? ' show' : '')} aria-hidden={!dashHidden}>
+                <div className="mini-bar">
+                  <span className="mini-t">Ko‘rsatkichlar</span>
+                  <span className="mini-nums">
+                    {kpi.map((k) => (
+                      <button key={k.k} tabIndex={dashHidden ? 0 : -1} className={'mini-n kpi-' + k.tone + (statKey === k.k ? ' on' : '')} onClick={() => pickStat(k.k)} title={k.label}>
+                        <Icon n={k.icon} s={15} /><b className="num">{k.v}</b><span>{k.short}</span>
+                      </button>
+                    ))}
+                  </span>
+                  <button className="mini-tg" tabIndex={dashHidden ? 0 : -1} aria-expanded={dashOpen} onClick={() => setDashOpen(!dashOpen)}>
+                    {dashOpen ? 'Yig‘ish' : 'Ochish'} <Icon n={dashOpen ? 'up' : 'chev'} s={16} />
+                  </button>
+                </div>
+                {dashOpen && dashHidden && (
+                  <div className="mini-panel">
+                    <div className="mini-panel-h">
+                      <p>Reestrda <b>{fams.length}</b> oila va <b>{fams.reduce((a, f) => a + f.azolar.length, 0)}</b> kishi bor. Quyidagi raqamlar joriy tanlov bo‘yicha.</p>
+                      <div className="hero-act">
+                        <button className="btn sm" onClick={newFamily}><Icon n="plus" s={15} /> Oila qo‘shish</button>
+                        <button className="btn soft sm" onClick={stdExport}><Icon n="down" s={15} /> Standart jadval</button>
+                      </div>
+                    </div>
+                    {renderKpis()}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="dash" ref={dashRef}>
             <section className="hero">
               <div className="hero-t">
                 <h2>{greet}, {user}!</h2>
@@ -221,18 +279,8 @@ function Registry({ onLogout }) {
               <HeroArt />
             </section>
 
-            {status === 'ready' && (
-              <section className="kpis" aria-label="Asosiy ko‘rsatkichlar">
-                {kpi.map((k) => (
-                  <button key={k.k} className={'kpi kpi-' + k.tone + (statKey === k.k ? ' on' : '')} onClick={() => pickStat(k.k)} aria-pressed={statKey === k.k}>
-                    <span className="kpi-ic" aria-hidden="true"><Icon n={k.icon} s={20} /></span>
-                    <span className="kpi-l">{k.label}</span>
-                    <b className="kpi-v num">{k.v}</b>
-                    <span className="kpi-s">{k.sub}</span>
-                  </button>
-                ))}
-              </section>
-            )}
+            {status === 'ready' && renderKpis()}
+          </div>
 
             <div className={'tools' + (fpOpen || quickOpen ? ' fp-open' : '')} ref={listRef}>
               <div className="tbar">
@@ -261,7 +309,7 @@ function Registry({ onLogout }) {
                       <button className="tbtn" aria-expanded={quickOpen} disabled={status !== 'ready'} onClick={() => setQuickOpen(!quickOpen)}>
                         <Icon n="down" s={16} /><span>Yuklab olish</span>
                       </button>
-                      {quickOpen && (
+                      {quickOpen && asSheet(
                         <>
                           <div className="fp-ov" onMouseDown={() => setQuickOpen(false)} />
                           <div className="menu" role="menu">
@@ -270,7 +318,7 @@ function Registry({ onLogout }) {
                             <button role="menuitem" onClick={() => quickExport('pdf')}><span className="mi mi-p">P</span><span><b>PDF</b><small>Chop etishga tayyor</small></span></button>
                             <button role="menuitem" onClick={() => { setQuickOpen(false); setModal({ t: 'export' }); }}><span className="mi"><Icon n="cols" s={16} /></span><span><b>Ustunlarni tanlash…</b><small>Shablon bo‘yicha sozlash</small></span></button>
                           </div>
-                        </>
+                        </>,
                       )}
                     </div>
                   </div>

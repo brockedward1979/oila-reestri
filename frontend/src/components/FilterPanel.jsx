@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { FILTER_GROUPS, applyFilters, emptyFilters } from '../lib/helpers.js';
 import { Icon } from './ui.jsx';
 
@@ -20,7 +21,7 @@ export default function FilterPanel({ fams, flt, setFlt, sort, setSort, resultCo
   }, [onClose]);
   const toggle = (g, k) => setFlt((f) => ({ ...f, [g]: f[g].includes(k) ? f[g].filter((x) => x !== k) : [...f[g], k] }));
   const any = FILTER_GROUPS.some((g) => flt[g.k].length);
-  return (
+  return asSheet(
     <>
       <div className="fp-ov" onMouseDown={onClose} />
       <div className="fp" role="dialog" aria-label="Filtr va saralash" tabIndex={-1} ref={panel}>
@@ -64,6 +65,11 @@ export default function FilterPanel({ fams, flt, setFlt, sort, setSort, resultCo
           <button className="btn" onClick={onClose}>{resultCount} ta oilani ko‘rsatish</button>
         </footer>
       </div>
-    </>
+    </>,
   );
+}
+
+/** Telefonda pastdan chiqadigan oyna body'ga chiqariladi: aks holda ota-elementlar uni ekranga emas, o'ziga bog'lab qo'yadi. */
+export function asSheet(node) {
+  return window.matchMedia('(max-width: 719px)').matches ? createPortal(node, document.body) : node;
 }

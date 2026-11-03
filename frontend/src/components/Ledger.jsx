@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { STATS, countStat } from '../lib/helpers.js';
+import { STATS, STAT_BY_KEY, countStat } from '../lib/helpers.js';
 
 const pct = (v, base) => (base ? Math.round((v / base) * 100) : 0);
 const TOIFA_COLOR = { k: '#F4B740', c: '#5CC08A', d: '#F2788A' };
@@ -49,6 +49,13 @@ export default function Ledger({ fams, statKey, onPick, selection }) {
         <p className="lg-kicker">Jami ko‘rsatkichlar</p>
         <h2 className="lg-title">{selection}</h2>
         <p className="lg-sum"><b className="num">{n}</b> oila · <b className="num">{M}</b> kishi</p>
+        {STAT_BY_KEY[statKey] && (
+          <button key={statKey} className="lg-active" onClick={() => onPick(statKey)} title="Bu filtrni olib tashlash">
+            <span className="lg-active-dot" aria-hidden="true" />
+            <span><small>Ro‘yxat filtrlangan:</small><b>{STAT_BY_KEY[statKey].label}</b></span>
+            <span className="lg-active-x" aria-hidden="true">×</span>
+          </button>
+        )}
       </header>
 
       <section className="lcard lc-lav">

@@ -139,7 +139,19 @@ export default function FamilyItem({ f, idx, open, onToggle, stat, ops, customFi
   const isKid = (m) => m.qarindoshlik !== 'Arizachi' && info(m).age != null && info(m).age < 18;
   const kids = f.azolar.filter(isKid).length;
   const [tab, setTab] = useState('tarkib');
-  useEffect(() => { if (!open) setTab('tarkib'); }, [open]);
+  // Ochilish/yopilish animatsiyasi: panel yopilayotganda ham animatsiya tugaguncha DOM'da qoladi
+  const [mounted, setMounted] = useState(open);
+  const [expanded, setExpanded] = useState(open);
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      const r = requestAnimationFrame(() => requestAnimationFrame(() => setExpanded(true)));
+      return () => cancelAnimationFrame(r);
+    }
+    setExpanded(false);
+    const t = setTimeout(() => { setMounted(false); setTab('tarkib'); }, 520);
+    return () => clearTimeout(t);
+  }, [open]);
   const sorted = sortedMembers(f);
   const groups = [
     { k: 'adult', t: 'Kattalar', list: sorted.filter((m) => !isKid(m)) },
@@ -148,7 +160,7 @@ export default function FamilyItem({ f, idx, open, onToggle, stat, ops, customFi
   const summary = famSummary(f);
   const tones = ['lav', 'pink', 'sun', 'sky', 'mint', 'peach'];
   return (
-    <li className={'fam' + (open ? ' open' : '')}>
+    <li className={'fam' + (open ? ' open' : '') + (mounted && !open ? ' closing' : '')}>
       <button className="fam-row" aria-expanded={open} onClick={onToggle}>
         <span className="c-no num">{idx + 1}</span>
         <Avatar src={f.rasm} name={h?.fio} />
@@ -171,7 +183,9 @@ export default function FamilyItem({ f, idx, open, onToggle, stat, ops, customFi
         <span className="c-chev" aria-hidden="true"><Icon n="chev" s={18} /></span>
       </button>
 
-      {open && (
+      {mounted && (
+        <div className={'fam-collapse' + (expanded ? ' in' : '')}>
+        <div className="fam-collapse-in">
         <div className="fam-panel">
           <div className="fp-bar">
             <div className="fp-facts">
@@ -223,6 +237,8 @@ export default function FamilyItem({ f, idx, open, onToggle, stat, ops, customFi
             {tab === 'info' && <InfoTab f={f} customFields={customFields} />}
             {tab === 'doc' && <DocTab f={f} customFields={customFields} toast={toast} />}
           </div>
+        </div>
+        </div>
         </div>
       )}
     </li>

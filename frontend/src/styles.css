@@ -609,65 +609,138 @@ h1,h2,h3,h4{font-weight:800;letter-spacing:-.01em}
   .lg-title{font-size:18px}
 }
 
-/* ═════════ Toifa tablari: faol tab pastdagi filtr paneliga "oqib" tushadi ═════════ */
-.tbar{--pad:22px;--ov:12px;--cr:18px;position:relative}
-.tbar-top{display:flex;align-items:flex-end;gap:10px;padding:10px 12px var(--pad) calc(12px + var(--cr));border-radius:28px;
-  background:linear-gradient(180deg,var(--nav-1),var(--nav-2));box-shadow:0 16px 30px -18px rgba(80,60,180,.7),inset 0 2px 0 rgba(255,255,255,.3)}
-.ttabs{flex:1;min-width:0;display:flex;align-items:flex-end;gap:4px;margin-right:var(--cr)}
-.ttab{position:relative;flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 14px;border:0;border-radius:18px;
-  background:transparent;color:#fff;font-weight:800;font-size:15px;cursor:pointer;white-space:nowrap;transition:background .15s}
+/* ═════════ Toifa tablari + filtr paneli: bitta yaxlit karta ═════════
+   Yuqori qism binafsha, pastki qism oq. Faol tab oq rangda pastga "oqib" tushadi, chok ko'rinmaydi. */
+.tbar{--pad:14px;--cr:18px;position:relative;container-type:inline-size;container-name:tbar;border-radius:28px;box-shadow:0 18px 34px -20px rgba(80,60,180,.65)}
+.tbar-top{display:flex;align-items:flex-end;gap:10px;padding:10px 12px var(--pad) calc(12px + var(--cr));border-radius:28px 28px 0 0;
+  background:linear-gradient(180deg,var(--nav-1),var(--nav-2));box-shadow:inset 0 2px 0 rgba(255,255,255,.3)}
+.ttabs{flex:1 1 auto;min-width:0;display:flex;align-items:flex-end;gap:4px;margin-right:var(--cr)}
+.ttab{position:relative;flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 16px;border:0;border-radius:16px;
+  background:transparent;color:#fff;font-weight:800;font-size:15px;cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
 .ttab:hover{background:rgba(255,255,255,.14)}
 .tl-short{display:none}
 .tdot{display:none;width:8px;height:8px;border-radius:50%;background:var(--primary);flex:0 0 auto}
-.tnum{padding:1px 9px;border-radius:99px;background:rgba(255,255,255,.22);font-size:13px}
-.ttab.on{z-index:3;background:var(--surface);color:var(--primary-2);border-radius:18px 18px 0 0;margin-bottom:calc(-1 * var(--pad));padding-bottom:var(--pad);min-height:calc(50px + var(--pad))}
+.tnum{flex:0 0 auto;padding:1px 9px;border-radius:99px;background:rgba(255,255,255,.22);font-size:13px}
+.ttab.on{z-index:3;background:var(--surface);color:var(--primary-2);border-radius:16px 16px 0 0;
+  margin-bottom:calc(-1 * var(--pad) - 1px);padding-bottom:calc(var(--pad) + 1px);min-height:calc(49px + var(--pad))}
 .ttab.on:hover{background:var(--surface)}
 .ttab.on .tdot{display:block}
-.ttab.on::before,.ttab.on::after{content:"";position:absolute;bottom:var(--ov);width:var(--cr);height:var(--cr);pointer-events:none}
-.ttab.on::before{left:calc(-1 * var(--cr));background:radial-gradient(circle at 0 0,transparent calc(var(--cr) - .5px),var(--surface) var(--cr))}
-.ttab.on::after{right:calc(-1 * var(--cr));background:radial-gradient(circle at 100% 0,transparent calc(var(--cr) - .5px),var(--surface) var(--cr))}
+.ttab.on::before,.ttab.on::after{content:"";position:absolute;bottom:1px;width:var(--cr);height:var(--cr);pointer-events:none}
+.ttab.on::before{left:calc(-1 * var(--cr));background:radial-gradient(circle at 0 0,transparent calc(var(--cr) - .6px),var(--surface) var(--cr))}
+.ttab.on::after{right:calc(-1 * var(--cr));background:radial-gradient(circle at 100% 0,transparent calc(var(--cr) - .6px),var(--surface) var(--cr))}
 .ttab.on .tnum{background:var(--lav);color:var(--primary-2)}
 .ttab.t-kambagal.on{color:var(--k)}.ttab.t-kambagal.on .tdot{background:#F0AE33}.ttab.t-kambagal.on .tnum{background:var(--k-bg);color:var(--k)}
 .ttab.t-chegara.on{color:var(--c)}.ttab.t-chegara.on .tdot{background:#43AE72}.ttab.t-chegara.on .tnum{background:var(--c-bg);color:var(--c)}
 .ttab.t-davlat.on{color:var(--d)}.ttab.t-davlat.on .tdot{background:#E8667B}.ttab.t-davlat.on .tnum{background:var(--d-bg);color:var(--d)}
 [data-theme="dark"] .ttab.on{color:var(--ink)}
 
-.tbar-act{display:flex;gap:8px;align-self:center;margin-bottom:calc(var(--ov) - var(--pad) + 4px)}
+.tbar-act{display:flex;gap:8px;align-self:center;flex:0 0 auto}
 .tbar-act .fp-wrap{flex:0 0 auto}
 .tbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 16px;border:0;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-weight:800;cursor:pointer;white-space:nowrap}
 .tbtn:hover{background:rgba(255,255,255,.28)}
-.tbtn.active{background:#fff;color:var(--primary-2)}
+.tbtn.active{background:#fff;color:#5B4BC9}
 .tbtn:disabled{opacity:.5;cursor:not-allowed}
-.tbtn .badge{background:#fff;color:var(--primary-2)}
-.tbtn.active .badge{background:var(--primary);color:#fff}
+.tbtn .badge{background:#fff;color:#5B4BC9}
+.tbtn.active .badge{background:#7563DD;color:#fff}
 
-.tbar-sub{position:relative;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:calc(-1 * var(--ov)) 12px 0;min-height:52px;padding:9px 16px;
-  border-radius:22px;background:var(--surface);box-shadow:0 14px 26px -16px rgba(80,60,180,.55);font-size:13.5px}
-.subchip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:2px 14px;border:0;border-radius:999px;background:var(--surface-2);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+.tbar-sub{position:relative;z-index:1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-height:56px;padding:12px 18px 12px;
+  border-radius:0 0 28px 28px;background:var(--surface);font-size:13.5px}
+.subchip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:2px 14px;border:0;border-radius:999px;background:var(--surface-2);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;animation:chipIn .3s ease-out}
 .subchip:hover{filter:brightness(.97)}
 .subchip svg{opacity:.6}
 .subchip.tone-k{background:var(--k-bg);color:var(--k)}.subchip.tone-c{background:var(--c-bg);color:var(--c)}.subchip.tone-d{background:var(--d-bg);color:var(--d)}
 .subchip.on{background:linear-gradient(180deg,var(--primary),var(--primary-2));color:var(--on-primary)}
 .subchip.on svg{opacity:.85}
+@keyframes chipIn{from{opacity:0;transform:translateY(-4px) scale(.96)}}
+
+/* tor joyda (sidebar bilan) tab nomlari qisqaradi, hech narsa chiqib ketmaydi */
+@container tbar (max-width:1080px){
+  .tl-full{display:none}.tl-short{display:inline}
+  .ttab{padding:0 12px;font-size:14.5px}
+  .tbtn{padding:0 13px}
+}
+@container tbar (max-width:780px){ .tbtn span:not(.badge){display:none} .ttab{padding:0 10px} }
 
 /* telefon: tablar bir qatorda (qisqa nom + son), tugmalar pastda */
 @media (max-width:719px){
-  .tbar{--pad:16px;--ov:10px;--cr:14px;display:flex;flex-direction:column}
+  .tbar{--pad:12px;--cr:14px;display:flex;flex-direction:column;box-shadow:none;container-type:normal}
   .tbar-top{display:contents}
-  .ttabs{order:1;margin:0;gap:2px;padding:8px 8px var(--pad) 8px;border-radius:24px;background:linear-gradient(180deg,var(--nav-1),var(--nav-2));box-shadow:0 14px 26px -16px rgba(80,60,180,.7)}
-  .ttab{flex-direction:column;gap:2px;min-height:58px;padding:6px 2px;font-size:13px;border-radius:16px}
-  .ttab.on{min-height:calc(58px + var(--pad));border-radius:16px 16px 0 0}
+  .ttabs{order:1;margin:0;gap:2px;padding:8px 8px var(--pad);border-radius:24px 24px 0 0;background:linear-gradient(180deg,var(--nav-1),var(--nav-2))}
+  .ttab{flex:1 1 0;flex-direction:column;gap:2px;min-height:56px;padding:6px 2px;font-size:13px;border-radius:14px}
+  .ttab.on{min-height:calc(57px + var(--pad));border-radius:14px 14px 0 0}
   .ttab.on .tdot{display:none}
   .tl-full{display:none}.tl-short{display:inline}
   .tnum{font-size:12px;padding:0 8px}
-  .ttab:first-child.on::before{display:none}
-  .ttab:last-child.on::after{display:none}
-  .ttab:first-child.on{border-top-left-radius:16px}
-  .tbar-sub{order:2;margin:calc(-1 * var(--ov)) 8px 0}
+  .ttab:first-child.on::before,.ttab:last-child.on::after{display:none}
+  .tbar-sub{order:2;border-radius:0 0 24px 24px;box-shadow:0 14px 26px -16px rgba(80,60,180,.55)}
   .tbar-act{order:3;margin:12px 0 0;align-self:stretch}
   .tbar-act .fp-wrap{flex:1 1 0}
   .tbtn{width:100%;background:var(--surface);color:var(--primary-2);box-shadow:var(--clay-sm)}
+  .tbtn span:not(.badge){display:inline}
   .tbtn .badge{background:var(--primary);color:#fff}
   .subchip{white-space:normal;text-align:left}
 }
-[data-theme="dark"] .tbtn.active{color:#2C2557}
+
+/* ═════════ Oila qatorining silliq ochilishi ═════════ */
+.fam{transition:background-color .45s ease,box-shadow .45s ease,margin .45s ease}
+.fam.closing{background:var(--open-head)}
+.fam.closing > .fam-row{color:var(--open-ink)}
+.fam-collapse{display:grid;grid-template-rows:0fr;transition:grid-template-rows .5s cubic-bezier(.2,.8,.2,1)}
+.fam-collapse.in{grid-template-rows:1fr}
+.fam-collapse-in{overflow:hidden;min-height:0}
+.fam-collapse .fam-panel{opacity:0;transform:translateY(-14px) scale(.985);transform-origin:top center;transition:opacity .4s ease .05s,transform .5s cubic-bezier(.2,.8,.2,1)}
+.fam-collapse.in .fam-panel{opacity:1;transform:none}
+.fam-collapse.in .fstat{animation:popIn .45s cubic-bezier(.2,.9,.3,1.3) backwards}
+.fam-collapse.in .fstat:nth-child(2){animation-delay:.04s}.fam-collapse.in .fstat:nth-child(3){animation-delay:.08s}
+.fam-collapse.in .fstat:nth-child(4){animation-delay:.12s}.fam-collapse.in .fstat:nth-child(5){animation-delay:.16s}.fam-collapse.in .fstat:nth-child(6){animation-delay:.2s}
+@keyframes popIn{from{opacity:0;transform:translateY(8px) scale(.9)}}
+.c-chev{transition:transform .45s cubic-bezier(.2,.8,.2,1),background .3s}
+
+/* ═════════ O'ng panel: faol filtr aniq ko'rinib turadi ═════════ */
+.lg-active{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:9px 12px;border:0;border-radius:16px;cursor:pointer;text-align:left;color:#fff;
+  background:linear-gradient(120deg,var(--primary),var(--primary-2),#B59CFF,var(--primary));background-size:300% 100%;
+  animation:activeIn .45s cubic-bezier(.2,.9,.3,1.3),activeFlow 4s linear infinite;box-shadow:0 10px 20px -10px var(--primary)}
+.lg-active span:nth-child(2){flex:1;display:flex;flex-direction:column;line-height:1.25}
+.lg-active small{font-size:11.5px;opacity:.85;font-weight:700}
+.lg-active b{font-size:15px}
+.lg-active-x{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.22);font-size:16px;font-weight:900}
+.lg-active-dot{width:10px;height:10px;border-radius:50%;background:#fff;animation:dotPulse 1.4s ease-out infinite}
+@keyframes activeIn{from{opacity:0;transform:translateY(-6px) scale(.95)}}
+@keyframes activeFlow{to{background-position:300% 0}}
+@keyframes dotPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.8)}100%{box-shadow:0 0 0 10px rgba(255,255,255,0)}}
+
+.lrow.on,.pair.on,.bar.on{position:relative;background:var(--surface);box-shadow:0 0 0 2px var(--primary);animation:rowIn .4s cubic-bezier(.2,.9,.3,1.3),rowPulse 1.8s ease-out .4s infinite}
+.lrow.on .lr-l{font-weight:800;color:var(--primary-2)}
+[data-theme="dark"] .lrow.on .lr-l{color:var(--ink)}
+.lrow.on::after{content:"✓";position:absolute;right:-6px;top:-6px;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:900;animation:popIn .35s cubic-bezier(.2,.9,.3,1.5)}
+@keyframes rowIn{from{transform:scale(.94)}}
+@keyframes rowPulse{0%{box-shadow:0 0 0 2px var(--primary),0 0 0 0 color-mix(in srgb,var(--primary) 55%,transparent)}70%{box-shadow:0 0 0 2px var(--primary),0 0 0 12px transparent}100%{box-shadow:0 0 0 2px var(--primary),0 0 0 0 transparent}}
+.lcard:has(.on){animation:cardGlow 2.2s ease-in-out infinite alternate}
+@keyframes cardGlow{from{box-shadow:var(--clay),0 0 0 0 transparent}to{box-shadow:var(--clay),0 0 0 4px color-mix(in srgb,var(--primary) 35%,transparent)}}
+.kpi.on{animation:rowIn .4s cubic-bezier(.2,.9,.3,1.3)}
+@media (prefers-reduced-motion:reduce){.lrow.on,.pair.on,.bar.on,.lcard:has(.on),.lg-active,.lg-active-dot{animation:none!important}}
+
+/* ═════════ Yig'iladigan ko'rsatkichlar paneli (scroll paytida tepada) ═════════ */
+.mini-dock{position:sticky;top:0;height:0;z-index:35}
+.mini-bar{position:absolute;left:0;right:0;top:8px;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-radius:22px;background:var(--surface);box-shadow:var(--pop);
+  transform:translateY(-130%);opacity:0;pointer-events:none;transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .25s}
+.mini-dock.show .mini-bar{transform:none;opacity:1;pointer-events:auto}
+.mini-t{font-weight:900;font-size:14px;flex:0 0 auto}
+.mini-nums{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.mini-n{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 12px;border:0;border-radius:999px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer}
+.mini-n b{font-size:15px;font-weight:900}
+.mini-n span{color:var(--muted)}
+.mini-n.on{box-shadow:0 0 0 2px var(--primary)}
+.mini-tg{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;min-height:38px;padding:0 14px;border:0;border-radius:999px;background:linear-gradient(180deg,var(--primary),var(--primary-2));color:var(--on-primary);font-weight:800;cursor:pointer}
+.mini-panel{position:absolute;left:0;right:0;top:72px;max-height:calc(100vh - 96px);overflow:auto;padding:16px;border-radius:26px;background:var(--surface);box-shadow:var(--pop);
+  animation:dropIn .4s cubic-bezier(.2,.8,.2,1);transform-origin:top center}
+.mini-panel-h{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.mini-panel-h p{margin:0;color:var(--muted)}
+.mini-panel-h p b{color:var(--ink)}
+.mini-panel .kpis{margin:12px 0 0}
+@keyframes dropIn{from{opacity:0;transform:translateY(-10px) scaleY(.92)}}
+@media (min-width:720px){.main.dash-min .tools{top:72px}}
+@media (max-width:719px){.mini-t{display:none}.mini-n span{display:none}.mini-bar{padding-left:8px}}
+.mini-dock::before{content:"";position:absolute;left:-14px;right:-14px;top:0;height:72px;background:var(--bg);opacity:0;pointer-events:none;transition:opacity .25s}
+.mini-dock.show::before{opacity:1}
+@media (max-width:719px){.mini-dock::before{height:64px}.mini-panel{top:64px}}
